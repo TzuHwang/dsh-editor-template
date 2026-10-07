@@ -1,0 +1,32 @@
+{
+  "name": "@dsh-editor/text",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/host.js",
+  "exports": {
+    ".": "./lib/host.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/"],
+  "scripts": { "build": "node ../../scripts/build-package.mjs" },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": ["@dsh-editor/core"]
+    }
+  },
+  "devDependencies": {
+    "@codemirror/commands": "^6.8.0",
+    "@codemirror/lang-markdown": "^6.3.0",
+    "@codemirror/lang-python": "^6.2.0",
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/search": "^6.5.0",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/view": "^6.38.0",
+    "@dsh-editor/core": "workspace:*",
+    "dompurify": "^3.2.0",
+    "marked": "^16.0.0"
+  }
+}

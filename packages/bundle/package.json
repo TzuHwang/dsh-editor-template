@@ -1,0 +1,14 @@
+{
+  "name": "@dsh-editor/bundle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH bundle: centre-or-sidebar text editor with an AI chat beside it.",
+  "type": "module",
+  "files": ["cordis.patch.yml"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "dependencies": {
+    "@dsh-editor/core": "workspace:*",
+    "@dsh-editor/layout-tab": "workspace:*",
+    "@dsh-editor/text": "workspace:*"
+  }
+}
