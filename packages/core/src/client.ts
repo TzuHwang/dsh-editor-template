@@ -5,7 +5,7 @@
  */
 import type { CordisContext, WorkspaceFilesRemote } from './contract/dsh.ts'
 import { DEFAULT_SETTINGS, EditorService, type EditorSettings } from './client/service.ts'
-import { SettingsCard, type ConfigFormSnapshot } from './client/settings-card.tsx'
+import { SettingsSection, type ConfigFormSnapshot } from './client/settings-section.tsx'
 import { en, zh } from './client/locales.ts'
 
 export const name = 'dsh-editor-core'
@@ -13,10 +13,8 @@ export const inject = ['remote', 'remote.workspaceFiles', 'locale', 'slots']
 
 /** Profile entry id of the core row; settings are read from its config form. */
 export const ENTRY_ID = 'dsh-editor-core'
-/** Locale namespace of the editor frame and the settings card. */
+/** Locale namespace of the editor frame and the settings page. */
 export const NS = 'dshEditor'
-/** The template's own bundle; projects with their own bundle call `editor.registerSettingsCard`. */
-const TEMPLATE_BUNDLE = '@dsh-editor/bundle'
 
 interface ConfigForm {
   getSnapshot(): ConfigFormSnapshot
@@ -62,7 +60,10 @@ function readSettings(form: ConfigForm, service: EditorService): () => void {
 
 export function apply(ctx: CordisContext): void {
   const remote = ctx.remote as { workspaceFiles: WorkspaceFilesRemote }
-  const locale = ctx.locale as { register(ns: string, dicts: Record<string, object>): () => void }
+  const locale = ctx.locale as {
+    register(ns: string, dicts: Record<string, object>): () => void
+    bind(ns: string): (key: string) => string
+  }
   const service = new EditorService(remote.workspaceFiles, browserStorage())
   ctx.effect(() => locale.register(NS, { zh, en }), 'dsh-editor: dictionaries')
 
@@ -74,20 +75,24 @@ export function apply(ctx: CordisContext): void {
     const form = forms.get(ENTRY_ID)
     const slots = ctx.slots as Slots
     ctx.effect(() => readSettings(form, service), 'dsh-editor: settings')
-    service.registerSettingsCard = bundleName => forms.whileServed([ENTRY_ID], () => slots.inject('plugins.bundle.config', () => slots.register(
+    // The editor's own page in DSH's settings, while the host serves this entry's settings.
+    const t = locale.bind(NS)
+    ctx.effect(() => forms.whileServed([ENTRY_ID], () => slots.inject('settings.section', () => slots.register(
       {
-        name: 'plugins.bundle.config',
-        key: bundleName,
+        name: 'settings.section',
+        id: 'dsh-editor',
+        order: 30,
+        label: () => t('settings.nav'),
         locale: NS,
         inject: () => ({
+          applied: service.settings.getSnapshot() ?? DEFAULT_SETTINGS,
           scopes: service.scopes.ids(),
-          set: (field: keyof EditorSettings, value: string) => { void form.set(field, value) },
+          set: (field: keyof EditorSettings, value: string | boolean) => form.set(field, value).catch(() => false),
           hooks: { form },
         }),
       },
-      SettingsCard as (props: never) => unknown,
-    )))
-    ctx.effect(() => service.registerSettingsCard(TEMPLATE_BUNDLE), 'dsh-editor: settings card')
+      SettingsSection as (props: never) => unknown,
+    ))), 'dsh-editor: settings page')
   }
 
   ctx.effect(() => ctx.reflect.provide('editor', service), 'dsh-editor: editor service')

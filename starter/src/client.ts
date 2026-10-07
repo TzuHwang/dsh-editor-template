@@ -7,14 +7,10 @@ import type { CordisContext, EditorService } from '@dsh-editor/core'
 export const name = 'my-dsh-project'
 export const inject = ['editor']
 
-/** Must equal package.json#name: DSH keys the plugin page by bundle package name. */
-const BUNDLE = 'my-dsh-project'
-
 export function apply(ctx: CordisContext): void {
   const editor = ctx.editor as EditorService
-
-  // The editor settings (on/off, scope) on this bundle's plugin page.
-  ctx.effect(() => editor.registerSettingsCard(BUNDLE), 'my-dsh-project: settings card')
+  // The editor's on/off and scope settings come with the template, on DSH's
+  // General settings page.
 
   // Project extensions. Each registration returns its disposer; wrap it in ctx.effect.
   //

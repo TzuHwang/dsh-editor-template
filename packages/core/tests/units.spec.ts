@@ -70,14 +70,14 @@ describe('EngineRegistry', () => {
 })
 
 describe('ScopeRegistry', () => {
-  it('resolves keys per strategy and falls back to workspace for unknown ids', () => {
+  it('resolves keys per strategy and falls back to session for unknown ids', () => {
     const registry = new ScopeRegistry()
     registry.register(workspaceScope)
     registry.register(sessionScope)
     const env = { workspaceRoot: 'C:/ws', sessionId: 's1' }
     expect(registry.get('workspace').resolveKey(env)).toBe('workspace:C:/ws')
     expect(registry.get('session').resolveKey(env)).toBe('session:s1')
-    expect(registry.get('nope').id).toBe('workspace')
+    expect(registry.get('nope').id).toBe('session')
     expect(registry.get('workspace').resolveKey({ workspaceRoot: undefined, sessionId: 's1' })).toBeNull()
   })
 

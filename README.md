@@ -12,35 +12,36 @@ Built against `@deepseek-ai/dsh` **0.2.0-rc.2**. DSH APIs used are declared in
 |---|---|---|
 | `@dsh-editor/core` | host + client | `ctx.editor`: engine and scope registries, document sync with disk, view state; host save route |
 | `@dsh-editor/text` | client | CodeMirror 6 engine for `.md`, `.py` and other text files, Markdown preview |
-| `@dsh-editor/layout-main` | client | The layout: the document fills the centre, a compact AI chat is a right-sidebar tab |
+| `@dsh-editor/layout-main` | client | The layout: the document fills the center, a compact AI chat is a right-sidebar tab |
 | `@dsh-editor/context` | host + client | Tells the AI which file is open and what is selected |
 | `@dsh-editor/bundle` | bundle | The template's own DSH bundle (for trying the template; projects ship their own, see `starter/`) |
 
 ## Turning it on
 
-Installed, the editor is **off** and DSH looks and behaves exactly as without it. Turn it on with the
-card on the bundle's page under **Plugins**, or in the profile patch; settings apply on the next
-page load:
+Installed, the editor is **off** and DSH looks and works exactly as without it. Turn it on under
+**Settings → Editor mode** (the button saves and reloads the page), or in the profile patch. The
+same page sets which sessions share open files and cursor positions:
 
 ```yaml
 - id: dsh-editor-core
   config:
-    enabled: true    # false (default): DSH unchanged
-    scope: workspace # workspace (default) or session: who shares editor tabs and cursors
+    enabled: true   # false (default): DSH unchanged
+    scope: session  # session (default): each session separately; workspace: all sessions in a workspace
 ```
 
 On, the editor replaces DSH's `main.conversation` whenever a session is selected, a new one
 included, and the AI chat opens beside it. "Full conversation" shows DSH's own screen (tool
 details; for a new session, its start screen with the workspace picker) with a floating "Back to
-editor" button. Files opened from the sidebar go to the centre. The chat tab handles approvals and AI questions; it does not offer model
+editor" button. Files opened from the sidebar go to the center. The chat tab handles approvals and
+AI questions; it does not offer model
 selection (use the full conversation for that). File tabs DSH's own preview opened before the
 editor was turned on stay DSH's; open the file from the file tree to edit it.
 
 ## Starting a project
 
 Copy [`starter/`](starter/README.md). A project is its own DSH bundle: it lists the template's rows
-in its `cordis.patch.yml`, extends the editor in its client plugin, and calls
-`editor.registerSettingsCard('<its package name>')` so the settings card shows on its page.
+in its `cordis.patch.yml` and extends the editor in its client plugin. The settings rows come with
+the template.
 
 ## Extending
 

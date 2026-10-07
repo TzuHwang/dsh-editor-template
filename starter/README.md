@@ -25,8 +25,8 @@ pnpm install-command --project "$(pwd)"   # prints the dsh plugin add command
 layouts, AI context) and this project's plugin. The template release is pinned in
 `package.json#dshEditor.release` and in the `@dsh-editor/core` dev dependency; change both to upgrade.
 
-Extend through `ctx.editor` in `src/client.ts`: register editor engines for new formats, scope
-strategies, and the settings card for this bundle.
+Extend through `ctx.editor` in `src/client.ts`: register editor engines for new formats and scope
+strategies. Users turn the editor on under Settings → General → Editor mode.
 
 ## Release
 

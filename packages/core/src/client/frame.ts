@@ -1,7 +1,7 @@
 /**
  * The editor frame: status line, conflict / missing / error banner, and the
  * engine underneath. Built with plain DOM in the plugin's apply world, so the
- * React mount (sidebar tab or centre) only hands over an element (DSH components carry no
+ * React mount (sidebar tab or center) only hands over an element (DSH components carry no
  * subscriptions of their own).
  */
 import type { DocumentStatus } from '../document.ts'
@@ -74,6 +74,7 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
       initialText: handle.doc.getText(),
       lineSeparator: handle.lineSeparator(),
       initialView: scopeKey === null ? undefined : editor.viewState.get(scopeKey, file.path),
+      labels: { preview: t('engine.preview'), source: t('engine.source') },
       onLocalChange: text => handle.doc.edit(text),
       onViewChange: view => { if (scopeKey !== null) editor.viewState.set(scopeKey, file.path, view) },
       save: () => { void handle.doc.flush() },

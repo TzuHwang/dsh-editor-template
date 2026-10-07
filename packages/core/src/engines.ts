@@ -19,6 +19,8 @@ export interface EngineBinding {
   /** Line separator the file uses; the engine must reproduce it on output. */
   readonly lineSeparator: '\n' | '\r\n'
   readonly initialView: FileViewState | undefined
+  /** Localized text for the engine's own controls. */
+  readonly labels: { readonly preview: string; readonly source: string }
   /** Report a user edit; the full new text. */
   onLocalChange(text: string): void
   /** Report cursor / scroll so it survives reloads. */

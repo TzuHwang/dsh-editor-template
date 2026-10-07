@@ -1,8 +1,8 @@
 /**
  * Scope strategies: which key editor view state is stored under.
  *
- * `workspace` (default): every session in one workspace shares view state.
- * `session`: each session keeps its own. A project may register its own
+ * `session` (default): each session keeps its own view state.
+ * `workspace`: every session in one workspace shares it. A project may register its own
  * strategy (e.g. per git branch) and select it by id.
  */
 
@@ -46,8 +46,8 @@ export class ScopeRegistry {
     return [...this.strategies.keys()]
   }
 
-  /** The strategy for an id; an unknown id falls back to `workspace` so a stale setting never blanks the editor. */
+  /** The strategy for an id; an unknown id falls back to `session` (the default) so a stale setting never blanks the editor. */
   get(id: string): EditorScopeStrategy {
-    return this.strategies.get(id) ?? this.strategies.get(workspaceScope.id) ?? workspaceScope
+    return this.strategies.get(id) ?? this.strategies.get(sessionScope.id) ?? sessionScope
   }
 }

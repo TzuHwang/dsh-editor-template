@@ -154,21 +154,25 @@ try {
     userTurns(llm.requests).some(parts => parts.includes('hello while off')))
     && !userTurns(llm.requests).some(parts => parts.some(part => part.includes('editor, beside this chat'))))
 
-  // ---- turn the editor on through the settings card ----
+  // ---- turn the editor on in Settings → Editor mode ----
   console.log('settings → on')
-  await page.getByText(/^(插件|Plugins)$/).first().click()
-  await page.getByText('@dsh-editor/bundle').first().click()
-  const enabled = page.getByTestId('dsh-editor-settings-enabled')
-  check('the settings card is on the bundle page', await eventually(async () => (await enabled.count()) > 0))
-  await enabled.check()
-  check('the setting is saved to the profile', await eventually(() => /enabled: true/.test(readFileSync(join(home, 'profiles', 'smoke', 'cordis.patch.yml'), 'utf8'))))
+  await page.getByText(/^(设置|Settings)$/).last().click()
+  await page.getByText(/^(编辑器模式|Editor mode)$/).first().click()
+  const toggle = page.getByTestId('dsh-editor-settings-toggle')
+  check('Settings has an Editor mode page', await eventually(async () => (await toggle.count()) > 0))
+  check('sharing defaults to each session separately', await eventually(async () =>
+    /^(每个会话各自独立|Each session separately)$/.test((await page.getByTestId('dsh-editor-settings-scope').innerText()).trim())))
+  const reloaded = page.waitForEvent('load', { timeout: 15_000 }).then(() => true, () => false)
+  await toggle.click()
+  check('turning it on saves to the profile', await eventually(() => /enabled: true/.test(readFileSync(join(home, 'profiles', 'smoke', 'cordis.patch.yml'), 'utf8'))))
+  check('and reloads the page', await reloaded)
 
-  // ---- on: document in the centre, chat on the right ----
+  // ---- on: document in the center, chat on the right ----
   console.log('on')
   await openPage(server.url)
   // A new session goes straight to the editor, with the chat open beside it.
   await page.getByText(/^(新会话|New session)$/).first().click()
-  check('on: a new session shows the centre editor', await eventually(async () => (await center.count()) > 0))
+  check('on: a new session shows the center editor', await eventually(async () => (await center.count()) > 0))
   check('on: the chat opens beside it', await eventually(async () => (await page.locator('[data-testid=dsh-chat-input]:visible').count()) > 0))
   await center.getByRole('button', { name: /^(完整对话|Full conversation)$/ }).click()
   const back = page.getByTestId('dsh-editor-back')
@@ -182,12 +186,12 @@ try {
   check('on: the editor stays after the first message', (await center.count()) > 0)
   // DSH titles the earlier session after the mock's answer.
   await page.getByText(/^(hello while off|ok)$/).first().click()
-  check('on: a session with messages shows the centre editor', await eventually(async () => (await center.count()) > 0))
+  check('on: a session with messages shows the center editor', await eventually(async () => (await center.count()) > 0))
   await openFromFiles('notes.md')
-  check('on: a file opened from the sidebar lands in the centre', await eventually(async () =>
+  check('on: a file opened from the sidebar lands in the center', await eventually(async () =>
     (await center.locator('[role=tab]').allInnerTexts()).some(text => text.includes('notes.md'))))
   const lines = center.locator('.cm-line')
-  check('on: the file loads in the centre editor', await eventually(async () => (await lines.count()) > 2))
+  check('on: the file loads in the center editor', await eventually(async () => (await lines.count()) > 2))
   await lines.nth(2).click()
   await page.keyboard.press('End')
   await page.keyboard.type(' edited')
@@ -223,7 +227,7 @@ try {
 
   await input.fill('TRIGGER_EDIT')
   await input.press('Enter')
-  check('an AI edit reaches the centre editor', await eventually(async () =>
+  check('an AI edit reaches the center editor', await eventually(async () =>
     (await center.locator('.cm-line').allInnerTexts()).includes('written by the AI')), 15_000)
   check('the AI edit is on disk', disk('notes.md') === AI_EDIT_TEXT, disk('notes.md'))
 

@@ -180,7 +180,7 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
     bar.className = 'dsh-text-engine__bar'
     const button = document.createElement('button')
     button.type = 'button'
-    button.textContent = 'Preview'
+    button.textContent = binding.labels.preview
     button.setAttribute('aria-pressed', 'false')
     button.addEventListener('click', () => {
       const showing = preview.hidden
@@ -188,7 +188,7 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
       preview.hidden = !showing
       source.hidden = showing
       button.setAttribute('aria-pressed', String(showing))
-      button.textContent = showing ? 'Source' : 'Preview'
+      button.textContent = showing ? binding.labels.source : binding.labels.preview
       if (!showing) view.focus()
     })
     bar.append(button)

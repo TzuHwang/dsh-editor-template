@@ -37,7 +37,7 @@ function plan(request, workspace) {
     return { text: 'done' }
   }
   if (text.includes('TRIGGER_ASK')) {
-    return { tool: 'ask_user_question', input: { questions: [{ id: 'q1', question: 'Pick a colour', options: [{ label: 'Red' }, { label: 'Blue' }] }] } }
+    return { tool: 'ask_user_question', input: { questions: [{ id: 'q1', question: 'Pick a color', options: [{ label: 'Red' }, { label: 'Blue' }] }] } }
   }
   if (text.includes('TRIGGER_WRITE')) {
     return { tool: 'pwsh', input: { command: 'Write-Output smoke', description: 'Smoke approval', sandbox_permissions: 'danger-full-access', justification: 'Smoke test of the approval prompt.' } }

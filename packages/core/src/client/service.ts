@@ -1,6 +1,6 @@
 /**
  * `ctx.editor`: the registries plus the open documents, shared by every mount
- * (A: right-sidebar tab, B: centre). Documents are reference-counted so two
+ * (A: right-sidebar tab, B: center). Documents are reference-counted so two
  * views of one file share one sync state.
  */
 import { parseSessionFileAddress, sessionFileAddress, type SessionFileAddress, type WorkspaceFilesRemote } from '../contract/dsh.ts'
@@ -40,7 +40,7 @@ export interface EditorSettings {
   readonly scope: string
 }
 
-export const DEFAULT_SETTINGS: EditorSettings = { enabled: false, scope: workspaceScope.id }
+export const DEFAULT_SETTINGS: EditorSettings = { enabled: false, scope: sessionScope.id }
 
 export class EditorService {
   readonly engines = new EngineRegistry()
@@ -54,8 +54,9 @@ export class EditorService {
 
   constructor(private readonly files: WorkspaceFilesRemote, storage: Storage | undefined) {
     this.viewState = new ViewStateStore(storage)
-    this.scopes.register(workspaceScope)
+    // Registration order is the order the settings page offers them.
     this.scopes.register(sessionScope)
+    this.scopes.register(workspaceScope)
   }
 
   /** Settings: everything visible registers only once these are known and `enabled` is on. */
@@ -66,13 +67,6 @@ export class EditorService {
       return () => { this.settingsListeners.delete(listener) }
     },
   }
-
-  /**
-   * Show the editor settings card on DSH's plugin page for a bundle. The core
-   * registers it for `@dsh-editor/bundle`; a project shipping its own bundle
-   * calls this with that bundle's package name. Returns the disposer.
-   */
-  registerSettingsCard: (bundleName: string) => () => void = () => () => {}
 
   /** Called by the core plugin once DSH's settings answered. */
   applySettings(settings: EditorSettings): void {

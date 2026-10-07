@@ -1,16 +1,16 @@
 /**
- * The editor layout: the document fills the centre, the AI chat is a
+ * The editor layout: the document fills the center, the AI chat is a
  * right-sidebar tab. Active only while the `enabled` setting is on; when off,
  * DSH is unchanged.
  *
- * - Centre: occupies `main.conversation` with a shadowing registration (a
+ * - Center: occupies `main.conversation` with a shadowing registration (a
  *   `single` slot is a documented replacement point), so it gets the selected
  *   session, a new one included; the chat opens beside it on first show. The
  *   registration is withdrawn, showing DSH's own screen, while no session is
  *   selected and while the user asked for the full conversation (which is also
  *   where DSH's start screen picks a new session's workspace).
- * - Files opened from the sidebar land in the centre: a redirect tab type
- *   outranks DSH's viewers, hands the file to the centre and closes itself.
+ * - Files opened from the sidebar land in the center: a redirect tab type
+ *   outranks DSH's viewers, hands the file to the center and closes itself.
  * - Chat: see chat.tsx.
  */
 import type { ContextSnapshot, CordisContext, EditorService, Translate } from '@dsh-editor/core'
@@ -77,7 +77,7 @@ interface RedirectProps {
   readonly openInCenter: (sessionId: string, address: string) => void
 }
 
-/** Body of the redirect tab: hand the file to the centre, then close. */
+/** Body of the redirect tab: hand the file to the center, then close. */
 function Redirect({ sessionId, useTabInfo, openInCenter }: RedirectProps) {
   const { tab } = useTabInfo()
   useEffect(() => {
@@ -125,7 +125,7 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
     sessionId === undefined ? undefined : sessions.list.getSnapshot().byId[sessionId]?.cwd
   const conversation = (sessionId: string): Conversation | undefined => sessions.scope(sessionId)?.get('conversation')
 
-  // ---- centre, shown unless blank / no session / full conversation requested ----
+  // ---- center, shown unless blank / no session / full conversation requested ----
 
   let mode: 'editor' | 'full' = 'editor'
   let disposeCenter: (() => void) | undefined
@@ -206,7 +206,7 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
     disposeBack?.()
   })
 
-  // ---- files from the sidebar open in the centre ----
+  // ---- files from the sidebar open in the center ----
 
   const openInCenter = (sessionId: string, address: string): void => {
     const file = editor.parseAddress(address)

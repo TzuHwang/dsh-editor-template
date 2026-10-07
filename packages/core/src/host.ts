@@ -14,13 +14,13 @@ export const name = 'dsh-editor-core'
 export const inject = ['webServer', 'connection', 'fs', 'sessions', 'sandboxPolicy']
 
 /**
- * Editor settings. Both are volatile, so the settings card edits them; the
- * browser reads them through `configForms.get(<this entry's id>)` and applies
- * them on the next page load. Until `enabled` is set, DSH looks and behaves
+ * Editor settings. Both are volatile, so rows on DSH's General settings page
+ * edit them; the browser reads them through `configForms.get(<this entry's id>)`
+ * and applies them on the next page load. Until `enabled` is set, DSH looks and behaves
  * exactly as without the editor.
  */
 export interface Config {
-  /** The editor fills the centre and the AI chat moves to the right sidebar. */
+  /** The editor fills the center and the AI chat moves to the right sidebar. */
   enabled: boolean
   /** Scope strategy id for editor view state: `workspace`, `session`, or one a project registered. */
   scope: string
@@ -28,10 +28,10 @@ export interface Config {
 
 export const Config = z.object({
   enabled: z.boolean().default(false)
-    .description('Editor in the centre, AI chat on the right. Off: DSH is unchanged. Reload to apply.')
+    .description('Editor mode: the document in the center, the AI chat on the right. Off: DSH is unchanged. Takes effect after a reload.')
     .volatile(),
-  scope: z.string().default('workspace')
-    .description('Whose editor state is shared: workspace (all sessions of a workspace) or session. Reload to apply.')
+  scope: z.string().default('session')
+    .description('Which sessions share open files and cursor positions: session (each separately) or workspace (all sessions in a workspace). Takes effect after a reload.')
     .volatile(),
 })
 
