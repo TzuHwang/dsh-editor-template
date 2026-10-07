@@ -10,3 +10,5 @@
       name: '@dsh-editor/layout-tab'
     - id: dsh-editor-context
       name: '@dsh-editor/context'
+    - id: dsh-editor-layout-main
+      name: '@dsh-editor/layout-main'

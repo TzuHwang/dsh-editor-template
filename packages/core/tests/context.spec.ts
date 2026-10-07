@@ -58,3 +58,16 @@ describe('ContextStore', () => {
     expect(contextKey(at('a.md', 1, 'x'))).not.toBe(contextKey(at('a.md', 1, 'y')))
   })
 })
+
+describe('ContextStore.update', () => {
+  it('refreshes only for the view that speaks for the session', () => {
+    const store = new ContextStore()
+    const active = {}
+    const other = {}
+    store.set('s', active, at('a.md', 5))
+    store.update('s', other, at('b.md', 1))
+    expect(effectiveContext(store.getSnapshot().s)?.path).toBe('a.md')
+    store.update('s', active, at('a.md', 4))
+    expect(effectiveContext(store.getSnapshot().s)?.cursorLine).toBe(4)
+  })
+})

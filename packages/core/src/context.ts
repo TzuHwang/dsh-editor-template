@@ -90,6 +90,11 @@ export class ContextStore {
     this.publish(sessionId, { context, suppressed: false })
   }
 
+  /** Refresh the context only if `owner` already speaks for the session (e.g. after text arrived from disk). */
+  update(sessionId: string, owner: object, context: EditorContext): void {
+    if (this.owners.get(sessionId) === owner) this.set(sessionId, owner, context)
+  }
+
   /** The view closed; the session has no context unless another view takes over. */
   release(sessionId: string, owner: object): void {
     if (this.owners.get(sessionId) !== owner) return

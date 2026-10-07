@@ -134,3 +134,60 @@ describe('parseSessionFileAddress', () => {
     expect(parseSessionFileAddress('dsh-resource://file/session/s/%E0%A4%A.md')).toBeUndefined()
   })
 })
+
+describe('ViewStateStore tabs', () => {
+  const memory = (): KeyValueStorage & { data: Map<string, string> } => {
+    const data = new Map<string, string>()
+    return {
+      data,
+      getItem: key => data.get(key) ?? null,
+      setItem: (key, value) => { data.set(key, value) },
+      removeItem: key => { data.delete(key) },
+    }
+  }
+
+  it('opens, activates and closes tabs, persisting them with the scope', () => {
+    const storage = memory()
+    const store = new ViewStateStore(storage)
+    store.openTab('w', 'a.md')
+    store.openTab('w', 'b.md')
+    store.openTab('w', 'a.md')
+    expect(store.getTabsSnapshot().w).toEqual({ open: ['a.md', 'b.md'], active: 'a.md' })
+    store.closeTab('w', 'a.md')
+    expect(store.getTabsSnapshot().w).toEqual({ open: ['b.md'], active: 'b.md' })
+    store.closeTab('w', 'b.md')
+    expect(store.getTabsSnapshot().w).toEqual({ open: [], active: null })
+    store.openTab('w', 'c.md')
+    const reloaded = new ViewStateStore(storage)
+    reloaded.ensureTabs('w')
+    expect(reloaded.getTabsSnapshot().w).toEqual({ open: ['c.md'], active: 'c.md' })
+  })
+
+  it('keeps cursor state and tabs side by side, and reads states saved before tabs existed', () => {
+    const storage = memory()
+    storage.setItem(STORAGE_PREFIX + 'old', '{"files":{"a.md":{"anchor":1,"head":1,"scrollTop":0}}}')
+    const store = new ViewStateStore(storage)
+    store.ensureTabs('old')
+    expect(store.getTabsSnapshot().old).toEqual({ open: [], active: null })
+    store.openTab('old', 'a.md')
+    expect(new ViewStateStore(storage).get('old', 'a.md')).toEqual({ anchor: 1, head: 1, scrollTop: 0 })
+  })
+
+  it('rejects an active tab that is not open', () => {
+    const storage = memory()
+    storage.setItem(STORAGE_PREFIX + 'bad', '{"files":{},"tabs":{"open":["a.md"],"active":"b.md"}}')
+    const store = new ViewStateStore(storage)
+    store.ensureTabs('bad')
+    expect(store.getTabsSnapshot().bad).toEqual({ open: [], active: null })
+    expect(storage.data.has(STORAGE_PREFIX + 'bad')).toBe(false)
+  })
+})
+
+describe('sessionFileAddress', () => {
+  it('round-trips through parseSessionFileAddress', async () => {
+    const { sessionFileAddress } = await import('../src/contract/dsh.ts')
+    for (const path of ['docs/a#b c.md', 'C:/x/y.md', '中文/筆記.md']) {
+      expect(parseSessionFileAddress(sessionFileAddress('s 1', path))).toEqual({ sessionId: 's 1', path })
+    }
+  })
+})

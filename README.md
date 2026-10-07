@@ -14,6 +14,25 @@ Built against `@deepseek-ai/dsh` **0.2.0-rc.2**. DSH APIs used are declared in
 | `@dsh-editor/text` | client | CodeMirror 6 engine for `.md`, `.py` and other text files, Markdown preview |
 | `@dsh-editor/layout-tab` | client | Layout A: the editor opens as a right-sidebar tab for files an engine supports |
 | `@dsh-editor/context` | host + client | Tells the AI which file is open and what is selected; removable chip above the composer |
+| `@dsh-editor/layout-main` | client | Layout B: the editor fills the centre, a compact AI chat is a right-sidebar tab |
+
+## Layouts and settings
+
+The core entry (`id: dsh-editor-core`) has two settings, both volatile so DSH's settings
+forms can edit them; they apply on the next page load:
+
+```yaml
+- id: dsh-editor-core
+  config:
+    layout: main     # tab (default): editor in the right sidebar; main: editor in the centre
+    scope: workspace # workspace (default) or session: who shares editor tabs and cursors
+```
+
+Layout B replaces DSH's `main.conversation` with the editor while a session with messages is
+selected. A new session shows DSH's own start screen until its first message; "Full conversation"
+shows DSH's conversation (tool details) with a "Back to editor" button in its header. Files opened
+from the sidebar go to the centre. The chat tab handles approvals and AI questions; it does not
+offer model selection (use the full conversation for that).
 | `@dsh-editor/bundle` | bundle | The DSH bundle that installs the packages above |
 
 ## Extending

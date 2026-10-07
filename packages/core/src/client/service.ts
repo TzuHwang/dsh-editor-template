@@ -3,7 +3,7 @@
  * (A: right-sidebar tab, B: centre). Documents are reference-counted so two
  * views of one file share one sync state.
  */
-import { parseSessionFileAddress, type SessionFileAddress, type WorkspaceFilesRemote } from '../contract/dsh.ts'
+import { parseSessionFileAddress, sessionFileAddress, type SessionFileAddress, type WorkspaceFilesRemote } from '../contract/dsh.ts'
 import { DocumentSync, type DiskText, type DocumentIO, type WriteResult } from '../document.ts'
 import { EngineRegistry } from '../engines.ts'
 import { ScopeRegistry, sessionScope, workspaceScope } from '../scopes.ts'
@@ -11,6 +11,7 @@ import { decodeText } from '../text-codec.ts'
 import { ViewStateStore } from '../view-state.ts'
 import { ContextStore } from '../context.ts'
 import { WRITE_ROUTE } from '../write-route.ts'
+import { attachFrame, type FrameTarget } from './frame.ts'
 
 export interface DocumentHandle {
   readonly doc: DocumentSync
@@ -32,15 +33,23 @@ interface OpenDocument {
 /** A version no file has: forces a content comparison after the watcher reconnects. */
 const RESYNC = '\0resync'
 
+/** Editor settings as the browser sees them; `undefined` until DSH's settings answered. */
+export interface EditorSettings {
+  readonly layout: 'tab' | 'main'
+  readonly scope: string
+}
+
+export const DEFAULT_SETTINGS: EditorSettings = { layout: 'tab', scope: workspaceScope.id }
+
 export class EditorService {
   readonly engines = new EngineRegistry()
   readonly scopes = new ScopeRegistry()
   readonly viewState: ViewStateStore
   /** What each session's editor shows, for the AI (design Q6). */
   readonly context = new ContextStore()
-  /** Selected scope strategy id (design Q7). */
-  scopeId = workspaceScope.id
   private readonly open = new Map<string, OpenDocument>()
+  private settingsValue: EditorSettings | undefined
+  private readonly settingsListeners = new Set<() => void>()
 
   constructor(private readonly files: WorkspaceFilesRemote, storage: Storage | undefined) {
     this.viewState = new ViewStateStore(storage)
@@ -48,9 +57,44 @@ export class EditorService {
     this.scopes.register(sessionScope)
   }
 
+  /** Settings (design Q9): mounts register for their layout once these are known. */
+  readonly settings = {
+    getSnapshot: (): EditorSettings | undefined => this.settingsValue,
+    subscribe: (listener: () => void): (() => void) => {
+      this.settingsListeners.add(listener)
+      return () => { this.settingsListeners.delete(listener) }
+    },
+  }
+
+  /** Called by the core plugin once DSH's settings answered. */
+  applySettings(settings: EditorSettings): void {
+    this.settingsValue = settings
+    for (const listener of this.settingsListeners) listener()
+  }
+
+  /** Selected scope strategy id (design Q7). */
+  get scopeId(): string {
+    return (this.settingsValue ?? DEFAULT_SETTINGS).scope
+  }
+
+  /** Mount the editor (status, banners, engine) for one address into `host`; returns the detach function. */
+  attachFrame(host: HTMLElement, target: FrameTarget): () => void {
+    return attachFrame(this, host, target)
+  }
+
+  /** The view-state scope key for a session, or null when it has none. */
+  scopeKey(sessionId: string | undefined, workspaceRoot: string | undefined): string | null {
+    return this.scopes.get(this.scopeId).resolveKey({ sessionId, workspaceRoot })
+  }
+
   /** Parse a `dsh-resource://file/session/…` address; undefined for anything else. */
   parseAddress(address: string): SessionFileAddress | undefined {
     return parseSessionFileAddress(address)
+  }
+
+  /** The address of a workspace path in a session (inverse of `parseAddress`). */
+  addressFor(sessionId: string, path: string): string {
+    return sessionFileAddress(sessionId, path)
   }
 
   /** Open (or share) the document for one session file. */

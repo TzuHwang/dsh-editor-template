@@ -96,7 +96,7 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
   let viewTimer: ReturnType<typeof setTimeout> | undefined
   let flashTimer: ReturnType<typeof setTimeout> | undefined
   let selectionTimer: ReturnType<typeof setTimeout> | undefined
-  const reportSelection = (delayMs: number): void => {
+  const reportSelection = (delayMs: number, passive = false): void => {
     clearTimeout(selectionTimer)
     selectionTimer = setTimeout(() => {
       const state = view.state
@@ -106,7 +106,7 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
         fromLine: state.doc.lineAt(from).number,
         toLine: state.doc.lineAt(to).number,
         text: state.sliceDoc(from, to),
-      })
+      }, passive)
     }, delayMs)
   }
   const reportView = (): void => {
@@ -216,6 +216,8 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
       clearTimeout(flashTimer)
       flashTimer = setTimeout(() => view.dispatch({ effects: clearFlash.of(null) }), FLASH_MS)
       if (!preview.hidden) renderPreview()
+      // Line numbers may have moved under the cursor.
+      reportSelection(0, true)
     },
     focus() {
       view.focus()

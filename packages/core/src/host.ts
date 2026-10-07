@@ -7,10 +7,32 @@
  * read, so a concurrent agent write turns into 409 instead of being overwritten.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import z from '@deepseek-ai/schemastery'
 import { MAX_WRITE_BYTES, WRITE_ROUTE, type WriteRequest } from './write-route.ts'
 
 export const name = 'dsh-editor-core'
 export const inject = ['webServer', 'connection', 'fs', 'sessions', 'sandboxPolicy']
+
+/**
+ * Editor settings. Both are volatile, so DSH's settings page edits them; the
+ * browser reads them through `configForms.get(<this entry's id>)` and applies
+ * them on the next page load (design Q9).
+ */
+export interface Config {
+  /** `tab`: editor in the right sidebar (layout A). `main`: editor in the centre, chat on the right (layout B). */
+  layout: 'tab' | 'main'
+  /** Scope strategy id for editor view state (design Q7): `workspace`, `session`, or one a project registered. */
+  scope: string
+}
+
+export const Config = z.object({
+  layout: z.union([z.const('tab' as const), z.const('main' as const)]).default('tab')
+    .description('Editor layout: tab = right sidebar, main = centre editor with chat on the right. Reload to apply.')
+    .volatile(),
+  scope: z.string().default('workspace')
+    .description('Whose editor state is shared: workspace (all sessions of a workspace) or session. Reload to apply.')
+    .volatile(),
+})
 
 // Host services, typed locally (see contract/dsh.ts for why).
 interface FsTarget { readonly __target: unique symbol }

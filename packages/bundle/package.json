@@ -16,6 +16,7 @@
     "@dsh-editor/context": "workspace:*",
     "@dsh-editor/core": "workspace:*",
     "@dsh-editor/layout-tab": "workspace:*",
-    "@dsh-editor/text": "workspace:*"
+    "@dsh-editor/text": "workspace:*",
+    "@dsh-editor/layout-main": "workspace:*"
   }
 }

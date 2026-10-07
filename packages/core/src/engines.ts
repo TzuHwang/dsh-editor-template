@@ -25,8 +25,12 @@ export interface EngineBinding {
   onViewChange(view: FileViewState): void
   /** The user asked to save now (Ctrl+S). */
   save(): void
-  /** Cursor or selection moved, or the editor gained focus (AI context, design Q6). */
-  onSelection(info: SelectionInfo): void
+  /**
+   * Cursor or selection moved, or the editor gained focus (AI context, design Q6).
+   * `passive`: the move was not the user's (text arrived from disk); it refreshes
+   * the context without making this editor the one that speaks for the session.
+   */
+  onSelection(info: SelectionInfo, passive: boolean): void
   /** The editor lost focus: the user is about to do something else, e.g. message the AI. */
   onBlur(): void
 }

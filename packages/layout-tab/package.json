@@ -9,15 +9,18 @@
     "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
-  "files": ["lib/"],
-  "scripts": { "build": "node ../../scripts/build-package.mjs" },
+  "files": [
+    "lib/"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs"
+  },
   "dsh": {
     "client": {
       "platform": "web",
       "inject": [
         "@dsh-editor/core",
-        "@deepseek-ai/dsh-client-ui-sidebar-right",
-        "@deepseek-ai/dsh-client-locale"
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
       ]
     }
   },

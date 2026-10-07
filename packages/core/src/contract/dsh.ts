@@ -10,6 +10,8 @@
 /** Cordis context: only the members we use. */
 export interface CordisContext {
   effect(factory: () => () => void, label?: string): () => void
+  /** Optional service lookup (undefined when not provided). */
+  get(name: string): unknown
   reflect: { provide(name: string, value: unknown): () => void }
   [service: string]: unknown
 }
@@ -49,6 +51,12 @@ export interface WorkspaceFilesRemote {
 export interface SessionFileAddress {
   readonly sessionId: string
   readonly path: string
+}
+
+/** The session-scoped address of a workspace path: segments component-encoded, `:` kept for drive letters. */
+export function sessionFileAddress(sessionId: string, path: string): string {
+  const encode = (segment: string): string => encodeURIComponent(segment).replace(/%3A/gi, ':')
+  return `dsh-resource://file/session/${encode(sessionId)}/${path.split('/').map(encode).join('/')}`
 }
 
 /**

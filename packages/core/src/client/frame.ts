@@ -1,11 +1,13 @@
 /**
  * The editor frame: status line, conflict / missing / error banner, and the
  * engine underneath. Built with plain DOM in the plugin's apply world, so the
- * React tab body only hands over an element (DSH components carry no
+ * React mount (sidebar tab or centre) only hands over an element (DSH components carry no
  * subscriptions of their own).
  */
-import type { DocumentStatus, EditorService, EngineInstance, SessionFileAddress } from '@dsh-editor/core'
-import { toEditorContext } from '@dsh-editor/core/context'
+import type { DocumentStatus } from '../document.ts'
+import type { EngineInstance } from '../engines.ts'
+import type { EditorService } from './service.ts'
+import { toEditorContext } from '../context.ts'
 
 export type Translate = (key: string, params?: Record<string, string>) => string
 
@@ -57,7 +59,7 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
   status.textContent = t('status.loading')
 
   const handle = editor.openDocument(file)
-  const scopeKey = editor.scopes.get(editor.scopeId).resolveKey({ workspaceRoot: target.workspaceRoot, sessionId: file.sessionId })
+  const scopeKey = editor.scopeKey(file.sessionId, target.workspaceRoot)
   let instance: EngineInstance | undefined
   let unsubscribe: (() => void) | undefined
   let detached = false
@@ -75,7 +77,11 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
       onLocalChange: text => handle.doc.edit(text),
       onViewChange: view => { if (scopeKey !== null) editor.viewState.set(scopeKey, file.path, view) },
       save: () => { void handle.doc.flush() },
-      onSelection: info => editor.context.set(file.sessionId, owner, toEditorContext(file.path, info)),
+      onSelection: (info, passive) => {
+        const context = toEditorContext(file.path, info)
+        if (passive) editor.context.update(file.sessionId, owner, context)
+        else editor.context.set(file.sessionId, owner, context)
+      },
       // Leaving the editor (e.g. to message the AI) saves now, so the AI reads what the user sees.
       onBlur: () => { void handle.doc.flush() },
     })
@@ -150,4 +156,3 @@ function button(document: Document, label: string, onClick: () => void): HTMLEle
   return node
 }
 
-export type { SessionFileAddress }
