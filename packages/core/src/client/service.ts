@@ -66,6 +66,13 @@ export class EditorService {
     },
   }
 
+  /**
+   * Show the editor settings card on DSH's plugin page for a bundle. The core
+   * registers it for `@dsh-editor/bundle`; a project shipping its own bundle
+   * calls this with that bundle's package name. Returns the disposer.
+   */
+  registerSettingsCard: (bundleName: string) => () => void = () => () => {}
+
   /** Called by the core plugin once DSH's settings answered. */
   applySettings(settings: EditorSettings): void {
     this.settingsValue = settings

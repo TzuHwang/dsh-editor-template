@@ -41,6 +41,11 @@ export class ScopeRegistry {
     }
   }
 
+  /** Registered strategy ids, in registration order. */
+  ids(): string[] {
+    return [...this.strategies.keys()]
+  }
+
   /** The strategy for an id; an unknown id falls back to `workspace` so a stale setting never blanks the editor. */
   get(id: string): EditorScopeStrategy {
     return this.strategies.get(id) ?? this.strategies.get(workspaceScope.id) ?? workspaceScope

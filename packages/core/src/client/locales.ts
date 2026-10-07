@@ -12,6 +12,14 @@ export const zh = {
   'error.save': '保存失败：{reason}',
   'error.open': '无法以文本打开此文件（{reason}）',
   retry: '重试',
+  'settings.layout': '版面',
+  'settings.layout.tab': '编辑器在右侧栏',
+  'settings.layout.main': '编辑器在中间，AI 对话在右侧',
+  'settings.scope': '编辑器状态共享范围',
+  'settings.scope.workspace': '同一工作区的所有会话',
+  'settings.scope.session': '每个会话各自独立',
+  'settings.reload': '重新整理页面后生效',
+  'settings.reloadNow': '立即重新整理',
 }
 
 export const en: typeof zh = {
@@ -27,4 +35,12 @@ export const en: typeof zh = {
   'error.save': 'Save failed: {reason}',
   'error.open': 'Cannot open this file as text ({reason})',
   retry: 'Retry',
+  'settings.layout': 'Layout',
+  'settings.layout.tab': 'Editor in the right sidebar',
+  'settings.layout.main': 'Editor in the centre, AI chat on the right',
+  'settings.scope': 'Editor state is shared by',
+  'settings.scope.workspace': 'All sessions of a workspace',
+  'settings.scope.session': 'Each session separately',
+  'settings.reload': 'Applies after the page reloads',
+  'settings.reloadNow': 'Reload now',
 }

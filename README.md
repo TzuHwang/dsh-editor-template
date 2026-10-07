@@ -15,11 +15,12 @@ Built against `@deepseek-ai/dsh` **0.2.0-rc.2**. DSH APIs used are declared in
 | `@dsh-editor/layout-tab` | client | Layout A: the editor opens as a right-sidebar tab for files an engine supports |
 | `@dsh-editor/context` | host + client | Tells the AI which file is open and what is selected; removable chip above the composer |
 | `@dsh-editor/layout-main` | client | Layout B: the editor fills the centre, a compact AI chat is a right-sidebar tab |
+| `@dsh-editor/bundle` | bundle | The template's own DSH bundle (for trying the template; projects ship their own, see `starter/`) |
 
 ## Layouts and settings
 
-The core entry (`id: dsh-editor-core`) has two settings, both volatile so DSH's settings
-forms can edit them; they apply on the next page load:
+The core entry (`id: dsh-editor-core`) has two settings. A card on the bundle's page under
+**Plugins** edits them, and so does the profile patch; they apply on the next page load:
 
 ```yaml
 - id: dsh-editor-core
@@ -33,7 +34,12 @@ selected. A new session shows DSH's own start screen until its first message; "F
 shows DSH's conversation (tool details) with a "Back to editor" button in its header. Files opened
 from the sidebar go to the centre. The chat tab handles approvals and AI questions; it does not
 offer model selection (use the full conversation for that).
-| `@dsh-editor/bundle` | bundle | The DSH bundle that installs the packages above |
+
+## Starting a project
+
+Copy [`starter/`](starter/README.md). A project is its own DSH bundle: it lists the template's rows
+in its `cordis.patch.yml`, extends the editor in its client plugin, and calls
+`editor.registerSettingsCard('<its package name>')` so the settings card shows on its page.
 
 ## Extending
 
@@ -53,11 +59,36 @@ pnpm install
 pnpm test          # unit tests
 pnpm typecheck
 pnpm build         # packages/*/lib
+pnpm smoke         # installs the bundle into a fresh DSH, drives both layouts in Edge
 pnpm dev:patch     # writes .dev/dev.patch.yml pointing at this checkout
 dsh --profile web --patch .dev/dev.patch.yml
 ```
 
 `dsh` options (`--profile`, `--patch`) go before app options (`--port`, `--no-open`).
+
+The smoke test installs the DSH version pinned in `package.json#dshVersion` into `.dev/`, runs
+against a local mock of the model API (no key, no network beyond the install), and keeps its temp
+directory with `failure.png` when a check fails. Upgrading DSH: bump `dshVersion`, audit
+`contract/dsh.ts`, run `pnpm smoke`.
+
+## Release and install
+
+Push a tag `vX.Y.Z`. CI (`.github/workflows/release.yml`) typechecks, tests, builds, runs the smoke
+test, then `scripts/release.mjs` commits the built `lib/` as tag `vX.Y.Z-dist` and prints the
+install command. DSH profiles refuse git dependencies of installed packages (pnpm
+`blockExoticSubdeps`), so every package is installed top level:
+
+```sh
+dsh plugin --profile web add \
+  "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/core" \
+  "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/text" \
+  "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/layout-tab" \
+  "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/layout-main" \
+  "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/context" \
+  "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/bundle"
+```
+
+A project replaces the last line with its own package (`pnpm install-command` in the starter).
 
 ## Behaviour notes
 
