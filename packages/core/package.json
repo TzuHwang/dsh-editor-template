@@ -8,6 +8,7 @@
     ".": { "types": "./src/index.ts", "default": "./lib/host.js" },
     "./client": { "types": "./src/client.ts", "default": "./lib/client.js" },
     "./diff": "./src/diff.ts",
+    "./context": "./src/context.ts",
     "./package.json": "./package.json"
   },
   "files": ["lib/", "src/"],

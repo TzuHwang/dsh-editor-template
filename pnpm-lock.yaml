@@ -130,6 +130,9 @@ importers:
 
   packages/bundle:
     dependencies:
+      '@dsh-editor/context':
+        specifier: workspace:*
+        version: link:../context
       '@dsh-editor/core':
         specifier: workspace:*
         version: link:../core
@@ -139,6 +142,12 @@ importers:
       '@dsh-editor/text':
         specifier: workspace:*
         version: link:../text
+
+  packages/context:
+    devDependencies:
+      '@dsh-editor/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/core: {}
 

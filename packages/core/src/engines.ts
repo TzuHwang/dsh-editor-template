@@ -6,6 +6,7 @@
  * ships with the template; a downstream project adds e.g. an `odt` engine by
  * registering it, without touching the template.
  */
+import type { SelectionInfo } from './context.ts'
 import type { FileViewState } from './view-state.ts'
 
 /** What an engine receives when it mounts one document. */
@@ -24,6 +25,10 @@ export interface EngineBinding {
   onViewChange(view: FileViewState): void
   /** The user asked to save now (Ctrl+S). */
   save(): void
+  /** Cursor or selection moved, or the editor gained focus (AI context, design Q6). */
+  onSelection(info: SelectionInfo): void
+  /** The editor lost focus: the user is about to do something else, e.g. message the AI. */
+  onBlur(): void
 }
 
 /** A mounted engine instance. */
@@ -34,8 +39,6 @@ export interface EngineInstance {
    * CodeMirror counts a CRLF as one position); `diffText` helps.
    */
   applyExternal(text: string): void
-  /** The current selection, for AI context (M2). */
-  getSelection(): { readonly from: number; readonly to: number; readonly text: string } | undefined
   focus(): void
   destroy(): void
 }

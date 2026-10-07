@@ -95,6 +95,20 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
 
   let viewTimer: ReturnType<typeof setTimeout> | undefined
   let flashTimer: ReturnType<typeof setTimeout> | undefined
+  let selectionTimer: ReturnType<typeof setTimeout> | undefined
+  const reportSelection = (delayMs: number): void => {
+    clearTimeout(selectionTimer)
+    selectionTimer = setTimeout(() => {
+      const state = view.state
+      const { from, to, head } = state.selection.main
+      binding.onSelection({
+        cursorLine: state.doc.lineAt(head).number,
+        fromLine: state.doc.lineAt(from).number,
+        toLine: state.doc.lineAt(to).number,
+        text: state.sliceDoc(from, to),
+      })
+    }, delayMs)
+  }
   const reportView = (): void => {
     clearTimeout(viewTimer)
     viewTimer = setTimeout(() => {
@@ -133,9 +147,16 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
             // sliceDoc joins lines with the configured separator; doc.toString() always uses "\n".
             binding.onLocalChange(update.state.sliceDoc())
           }
-          if (update.selectionSet || update.docChanged) reportView()
+          if (update.selectionSet || update.docChanged) {
+            reportView()
+            if (update.view.hasFocus) reportSelection(150)
+          }
         }),
-        EditorView.domEventHandlers({ scroll: () => { reportView() } }),
+        EditorView.domEventHandlers({
+          scroll: () => { reportView() },
+          focus: () => { reportSelection(0) },
+          blur: () => { binding.onBlur() },
+        }),
       ],
     }),
   })
@@ -146,6 +167,9 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
     view.dispatch({ selection: EditorSelection.single(Math.min(initial.anchor, length), Math.min(initial.head, length)) })
     requestAnimationFrame(() => { view.scrollDOM.scrollTop = initial.scrollTop })
   }
+
+  // A freshly opened file is what the user is looking at: tell the AI right away.
+  reportSelection(0)
 
   root.append(...MARKDOWN.includes(binding.extension) ? [toolbar()] : [], body)
   body.append(source, preview)
@@ -193,16 +217,13 @@ function mount(host: HTMLElement, binding: EngineBinding): EngineInstance {
       flashTimer = setTimeout(() => view.dispatch({ effects: clearFlash.of(null) }), FLASH_MS)
       if (!preview.hidden) renderPreview()
     },
-    getSelection() {
-      const { from, to } = view.state.selection.main
-      return { from, to, text: view.state.sliceDoc(from, to) }
-    },
     focus() {
       view.focus()
     },
     destroy() {
       clearTimeout(viewTimer)
       clearTimeout(flashTimer)
+      clearTimeout(selectionTimer)
       view.destroy()
       root.remove()
     },

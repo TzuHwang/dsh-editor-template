@@ -9,6 +9,7 @@ import { EngineRegistry } from '../engines.ts'
 import { ScopeRegistry, sessionScope, workspaceScope } from '../scopes.ts'
 import { decodeText } from '../text-codec.ts'
 import { ViewStateStore } from '../view-state.ts'
+import { ContextStore } from '../context.ts'
 import { WRITE_ROUTE } from '../write-route.ts'
 
 export interface DocumentHandle {
@@ -35,6 +36,8 @@ export class EditorService {
   readonly engines = new EngineRegistry()
   readonly scopes = new ScopeRegistry()
   readonly viewState: ViewStateStore
+  /** What each session's editor shows, for the AI (design Q6). */
+  readonly context = new ContextStore()
   /** Selected scope strategy id (design Q7). */
   scopeId = workspaceScope.id
   private readonly open = new Map<string, OpenDocument>()

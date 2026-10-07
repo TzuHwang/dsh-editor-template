@@ -13,6 +13,7 @@ Built against `@deepseek-ai/dsh` **0.2.0-rc.2**. DSH APIs used are declared in
 | `@dsh-editor/core` | host + client | `ctx.editor`: engine and scope registries, document sync with disk, view state; host save route |
 | `@dsh-editor/text` | client | CodeMirror 6 engine for `.md`, `.py` and other text files, Markdown preview |
 | `@dsh-editor/layout-tab` | client | Layout A: the editor opens as a right-sidebar tab for files an engine supports |
+| `@dsh-editor/context` | host + client | Tells the AI which file is open and what is selected; removable chip above the composer |
 | `@dsh-editor/bundle` | bundle | The DSH bundle that installs the packages above |
 
 ## Extending
@@ -46,6 +47,11 @@ dsh --profile web --patch .dev/dev.patch.yml
   instead of being overwritten.
 - Files are read as bytes: the trailing newline, a UTF-8 BOM and CRLF line endings round-trip.
   A file mixing CRLF and LF is written back with its first line ending throughout.
+- Leaving the editor (e.g. clicking the chat composer) saves at once, so the AI reads what is on screen.
+- Editor context reaches the AI as a hidden `snapshot` user message (source `dsh-editor-context`),
+  added on the step a user message enters and only when it changed since the last one in the
+  session. The browser mirrors it to the host via `POST /dsh-editor/context`, because DSH 0.2 has
+  no client hook on outgoing messages. A selection is cut to 2000 characters.
 - DSH 0.2 offers no write API to plugins, so saving uses the authenticated route
   `POST /dsh-editor/write`, confined to the session's workspace. It is untested on the DSH
   desktop app, which reaches routes through an IPC bridge.

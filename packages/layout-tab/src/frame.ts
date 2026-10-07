@@ -5,6 +5,7 @@
  * subscriptions of their own).
  */
 import type { DocumentStatus, EditorService, EngineInstance, SessionFileAddress } from '@dsh-editor/core'
+import { toEditorContext } from '@dsh-editor/core/context'
 
 export type Translate = (key: string, params?: Record<string, string>) => string
 
@@ -60,6 +61,8 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
   let instance: EngineInstance | undefined
   let unsubscribe: (() => void) | undefined
   let detached = false
+  /** This view's identity in the per-session context store. */
+  const owner = {}
 
   void handle.ready.then(() => {
     if (detached) return
@@ -72,6 +75,9 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
       onLocalChange: text => handle.doc.edit(text),
       onViewChange: view => { if (scopeKey !== null) editor.viewState.set(scopeKey, file.path, view) },
       save: () => { void handle.doc.flush() },
+      onSelection: info => editor.context.set(file.sessionId, owner, toEditorContext(file.path, info)),
+      // Leaving the editor (e.g. to message the AI) saves now, so the AI reads what the user sees.
+      onBlur: () => { void handle.doc.flush() },
     })
     unsubscribe = handle.doc.subscribe({
       status: next => render(next),
@@ -110,6 +116,7 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
 
   return () => {
     detached = true
+    editor.context.release(file.sessionId, owner)
     unsubscribe?.()
     instance?.destroy()
     handle.release()

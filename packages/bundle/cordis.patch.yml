@@ -8,3 +8,5 @@
       name: '@dsh-editor/text'
     - id: dsh-editor-layout-tab
       name: '@dsh-editor/layout-tab'
+    - id: dsh-editor-context
+      name: '@dsh-editor/context'
