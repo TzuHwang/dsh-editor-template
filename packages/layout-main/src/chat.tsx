@@ -1,5 +1,5 @@
 /**
- * The right-sidebar chat of layout B (design Q11): a compact conversation
+ * The right-sidebar chat beside the centre editor: a compact conversation
  * built on DSH's public session hooks. Official components cannot be rendered
  * outside `main.conversation`, so this draws its own; "full conversation"
  * shows DSH's for tool details.

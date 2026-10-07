@@ -12,28 +12,29 @@ Built against `@deepseek-ai/dsh` **0.2.0-rc.2**. DSH APIs used are declared in
 |---|---|---|
 | `@dsh-editor/core` | host + client | `ctx.editor`: engine and scope registries, document sync with disk, view state; host save route |
 | `@dsh-editor/text` | client | CodeMirror 6 engine for `.md`, `.py` and other text files, Markdown preview |
-| `@dsh-editor/layout-tab` | client | Layout A: the editor opens as a right-sidebar tab for files an engine supports |
-| `@dsh-editor/context` | host + client | Tells the AI which file is open and what is selected; removable chip above the composer |
-| `@dsh-editor/layout-main` | client | Layout B: the editor fills the centre, a compact AI chat is a right-sidebar tab |
+| `@dsh-editor/layout-main` | client | The layout: the document fills the centre, a compact AI chat is a right-sidebar tab |
+| `@dsh-editor/context` | host + client | Tells the AI which file is open and what is selected |
 | `@dsh-editor/bundle` | bundle | The template's own DSH bundle (for trying the template; projects ship their own, see `starter/`) |
 
-## Layouts and settings
+## Turning it on
 
-The core entry (`id: dsh-editor-core`) has two settings. A card on the bundle's page under
-**Plugins** edits them, and so does the profile patch; they apply on the next page load:
+Installed, the editor is **off** and DSH looks and behaves exactly as without it. Turn it on with the
+card on the bundle's page under **Plugins**, or in the profile patch; settings apply on the next
+page load:
 
 ```yaml
 - id: dsh-editor-core
   config:
-    layout: main     # tab (default): editor in the right sidebar; main: editor in the centre
+    enabled: true    # false (default): DSH unchanged
     scope: workspace # workspace (default) or session: who shares editor tabs and cursors
 ```
 
-Layout B replaces DSH's `main.conversation` with the editor while a session with messages is
-selected. A new session shows DSH's own start screen until its first message; "Full conversation"
-shows DSH's conversation (tool details) with a "Back to editor" button in its header. Files opened
-from the sidebar go to the centre. The chat tab handles approvals and AI questions; it does not
-offer model selection (use the full conversation for that).
+On, the editor replaces DSH's `main.conversation` whenever a session is selected, a new one
+included, and the AI chat opens beside it. "Full conversation" shows DSH's own screen (tool
+details; for a new session, its start screen with the workspace picker) with a floating "Back to
+editor" button. Files opened from the sidebar go to the centre. The chat tab handles approvals and AI questions; it does not offer model
+selection (use the full conversation for that). File tabs DSH's own preview opened before the
+editor was turned on stay DSH's; open the file from the file tree to edit it.
 
 ## Starting a project
 
@@ -59,7 +60,7 @@ pnpm install
 pnpm test          # unit tests
 pnpm typecheck
 pnpm build         # packages/*/lib
-pnpm smoke         # installs the bundle into a fresh DSH, drives both layouts in Edge
+pnpm smoke         # installs the bundle into a fresh DSH; checks it off, then on, in Edge
 pnpm dev:patch     # writes .dev/dev.patch.yml pointing at this checkout
 dsh --profile web --patch .dev/dev.patch.yml
 ```
@@ -82,7 +83,6 @@ install command. DSH profiles refuse git dependencies of installed packages (pnp
 dsh plugin --profile web add \
   "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/core" \
   "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/text" \
-  "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/layout-tab" \
   "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/layout-main" \
   "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/context" \
   "github:TzuHwang/dsh-editor-template#vX.Y.Z-dist&path:/packages/bundle"

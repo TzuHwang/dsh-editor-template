@@ -1,21 +1,21 @@
 /**
- * Layout B (design Q1, spike S2): the editor fills the centre, the AI chat is a
- * right-sidebar tab. Active only while the `layout` setting is `main`.
+ * The editor layout: the document fills the centre, the AI chat is a
+ * right-sidebar tab. Active only while the `enabled` setting is on; when off,
+ * DSH is unchanged.
  *
  * - Centre: occupies `main.conversation` with a shadowing registration (a
  *   `single` slot is a documented replacement point), so it gets the selected
- *   session. The registration is withdrawn, showing DSH's own conversation,
- *   while no session or a blank one is selected (DSH's start screen picks the
- *   workspace and takes the first message, M3-2), and while the user asked for
- *   the full conversation.
- * - Files opened from the sidebar land in the centre (M3-1): a redirect tab
- *   type outranks layout A's and DSH's viewers, hands the file to the centre
- *   and closes itself.
+ *   session, a new one included; the chat opens beside it on first show. The
+ *   registration is withdrawn, showing DSH's own screen, while no session is
+ *   selected and while the user asked for the full conversation (which is also
+ *   where DSH's start screen picks a new session's workspace).
+ * - Files opened from the sidebar land in the centre: a redirect tab type
+ *   outranks DSH's viewers, hands the file to the centre and closes itself.
  * - Chat: see chat.tsx.
  */
 import type { ContextSnapshot, CordisContext, EditorService, Translate } from '@dsh-editor/core'
 import { effectiveContext } from '@dsh-editor/core/context'
-import { CHAT_TAB_KIND as CHAT_KIND, EDITOR_TAB_KIND, REDIRECT_TAB_KIND as REDIRECT_KIND } from '@dsh-editor/core/kinds'
+import { CHAT_TAB_KIND as CHAT_KIND, LEGACY_EDITOR_TAB_KIND, REDIRECT_TAB_KIND as REDIRECT_KIND } from '@dsh-editor/core/kinds'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import { useEffect } from 'react'
@@ -30,7 +30,7 @@ const NS = 'dshEditorMain'
 const FRAME_NS = 'dshEditor'
 const CHAT_ID = '@dsh-editor/layout-main/chat'
 const REDIRECT_ID = '@dsh-editor/layout-main/redirect'
-const LEGACY_ID = '@dsh-editor/layout-main/legacy-editor'
+const RETIRE_ID = '@dsh-editor/layout-main/retired'
 /** DSH's file-tree tab kind (@deepseek-ai/dsh-client-ui-sidebar-files). */
 const FILES_KIND = 'files'
 
@@ -87,15 +87,25 @@ function Redirect({ sessionId, useTabInfo, openInCenter }: RedirectProps) {
   return null
 }
 
+/**
+ * A floating button over DSH's own screen. It sits in the frame-wide overlay
+ * rather than a conversation header, because a new session's start screen has
+ * no header. The overlay layer is click-through; the button opts back in.
+ */
 function BackToEditor({ t, back }: { t: Translate; back: () => void }) {
   return (
     <button
       type="button"
       data-testid="dsh-editor-back"
       onClick={back}
-      style={{ font: 'inherit', fontSize: 12, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', color: 'inherit', background: 'transparent', border: '1px solid color-mix(in srgb, currentColor 20%, transparent)' }}
+      style={{
+        position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 10, pointerEvents: 'auto',
+        font: 'inherit', fontSize: 12, padding: '5px 14px', borderRadius: 999, cursor: 'pointer',
+        color: 'inherit', background: 'var(--dsw-alias-bg-l1, Canvas)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+        border: '1px solid color-mix(in srgb, currentColor 20%, transparent)',
+      }}
     >
-      {t('header.backToEditor')}
+      ← {t('header.backToEditor')}
     </button>
   )
 }
@@ -103,7 +113,7 @@ function BackToEditor({ t, back }: { t: Translate; back: () => void }) {
 function mount(ctx: CordisContext, editor: EditorService): () => void {
   const slots = ctx.slots as Slots
   const tabs = ctx.sidebarRightTabs as { register(definition: object): () => void }
-  const sidebar = ctx.sidebarRight as { openTab(kind: string): void }
+  const sidebar = ctx.sidebarRight as { openTab(kind: string): void; isExpanded(): boolean }
   const sessions = ctx.sessions as Sessions
   const current = (ctx.uiSession as { adapter: { current: Observable<{ key: string | undefined }> } }).adapter.current
   const locale = ctx.locale as Locale
@@ -147,16 +157,39 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
     Center as (props: never) => unknown,
   ))
 
-  const registerBack = (): (() => void) => slots.inject('conversation.session.header.actions', () => slots.register(
-    { name: 'conversation.session.header.actions', id: 'dsh-editor-back', order: -100, inject: () => ({ back, t }) },
+  const registerBack = (): (() => void) => slots.inject('shell.overlay', () => slots.register(
+    { name: 'shell.overlay', id: 'dsh-editor-back', inject: () => ({ back, t }) },
     BackToEditor as (props: never) => unknown,
   ))
 
+  /** The session the editor last showed for; the chat is ensured once per arrival. */
+  let shownFor: string | undefined
+
+  /**
+   * The chat belongs beside the editor: when the editor shows for a session
+   * (switching sessions, back from the full conversation) and that session's
+   * sidebar is collapsed, open it on the chat. An expanded sidebar is left as
+   * the user arranged it.
+   */
+  const ensureChat = (): void => {
+    // After the commit that mounts the session's sidebar seat.
+    setTimeout(() => {
+      try {
+        if (!sidebar.isExpanded()) openChat()
+      } catch {
+        // No session on screen yet; the "AI chat" button stays available.
+      }
+    }, 0)
+  }
+
   function syncCenter(): void {
     const key = current.getSnapshot().key
-    const blank = key === undefined || (sessions.list.getSnapshot().byId[key]?.blank ?? true)
-    const showEditor = mode === 'editor' && !blank
+    // Any selected session, a new one included, gets the editor; DSH's own screen
+    // (start screen, workspace picker) stays one click away under "full conversation".
+    const showEditor = mode === 'editor' && key !== undefined
     if (showEditor && disposeCenter === undefined) disposeCenter = registerCenter()
+    if (showEditor && key !== shownFor) ensureChat()
+    shownFor = showEditor ? key : undefined
     if (!showEditor && disposeCenter !== undefined) {
       disposeCenter()
       disposeCenter = undefined
@@ -199,17 +232,6 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
     { name: 'sidebar.right.pane.tab', key: REDIRECT_ID, inject: () => ({ openInCenter }) },
     Redirect as (props: never) => unknown,
   )))
-  // Editor tabs saved while layout A was active: hand them to the centre too.
-  disposers.push(tabs.register({
-    id: LEGACY_ID,
-    kind: EDITOR_TAB_KIND,
-    multiple: true,
-    title: (address: string) => address.slice(address.lastIndexOf('/') + 1),
-  }))
-  disposers.push(slots.inject('sidebar.right.pane.tab', () => slots.register(
-    { name: 'sidebar.right.pane.tab', key: LEGACY_ID, inject: () => ({ openInCenter }) },
-    Redirect as (props: never) => unknown,
-  )))
 
   // ---- chat ----
 
@@ -248,23 +270,53 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
   }
 }
 
+/** Body for an editor tab left in the sidebar after the editor was turned off: close it. */
+function Retire({ useTabInfo }: { useTabInfo: () => { readonly tab: { readonly actions: { close(): void } } } }) {
+  const { tab } = useTabInfo()
+  useEffect(() => { tab.actions.close() }, [tab])
+  return null
+}
+
+/** While the editor is off, its persisted tabs only close themselves; nothing else of DSH changes. */
+function retire(ctx: CordisContext, kinds: readonly string[]): () => void {
+  const slots = ctx.slots as Slots
+  const tabs = ctx.sidebarRightTabs as { register(definition: object): () => void }
+  return combine(kinds.flatMap((kind) => {
+    const id = `${RETIRE_ID}/${kind}`
+    return [
+      tabs.register({ id, kind, multiple: true, title: (address: string) => address.slice(address.lastIndexOf('/') + 1) }),
+      slots.inject('sidebar.right.pane.tab', () => slots.register(
+        { name: 'sidebar.right.pane.tab', key: id },
+        Retire as (props: never) => unknown,
+      )),
+    ]
+  }))
+}
+
+function combine(disposers: readonly (() => void)[]): () => void {
+  return () => { for (const dispose of [...disposers].reverse()) dispose() }
+}
+
 export function apply(ctx: CordisContext): void {
   const editor = ctx.editor as EditorService
   const locale = ctx.locale as Locale
-  ctx.effect(() => locale.register(NS, { zh, en }), 'dsh-editor: layout B dictionaries')
+  ctx.effect(() => locale.register(NS, { zh, en }), 'dsh-editor: layout dictionaries')
   ctx.effect(() => {
     let dispose: (() => void) | undefined
-    let disposeStyle: (() => void) | undefined
+    let state: 'on' | 'off' | undefined
     const sync = (): void => {
-      const active = editor.settings.getSnapshot()?.layout === 'main'
-      if (active && dispose === undefined) {
-        disposeStyle = ensureStyle()
-        dispose = mount(ctx, editor)
-      }
-      if (!active && dispose !== undefined) {
-        dispose()
-        disposeStyle?.()
-        dispose = disposeStyle = undefined
+      const settings = editor.settings.getSnapshot()
+      if (settings === undefined) return
+      const next = settings.enabled ? 'on' : 'off'
+      if (next === state) return
+      dispose?.()
+      state = next
+      if (next === 'on') {
+        const disposeStyle = ensureStyle()
+        const disposeMount = mount(ctx, editor)
+        dispose = combine([disposeStyle, disposeMount, retire(ctx, [LEGACY_EDITOR_TAB_KIND])])
+      } else {
+        dispose = retire(ctx, [CHAT_KIND, REDIRECT_KIND, LEGACY_EDITOR_TAB_KIND])
       }
     }
     const unsubscribe = editor.settings.subscribe(sync)
@@ -272,7 +324,6 @@ export function apply(ctx: CordisContext): void {
     return () => {
       unsubscribe()
       dispose?.()
-      disposeStyle?.()
     }
-  }, 'dsh-editor: layout B')
+  }, 'dsh-editor: layout')
 }

@@ -111,18 +111,43 @@ export function apply(ctx: CordisContext): void {
   const locale = ctx.locale as { register(ns: string, dicts: Record<string, object>): () => void }
 
   ctx.effect(() => locale.register(NS, { zh, en }), 'dsh-editor: context dictionaries')
-  ctx.effect(() => mirror(editor.context), 'dsh-editor: mirror context to host')
 
   const source = { getSnapshot: editor.context.getSnapshot, subscribe: editor.context.subscribe }
   const remove = (sessionId: string): void => editor.context.suppress(sessionId)
-  ctx.effect(() => slots.inject('conversation.input.dock', () => slots.register(
-    {
-      name: 'conversation.input.dock',
-      id: 'dsh-editor-context',
-      order: 50,
-      locale: NS,
-      inject: () => ({ remove, hooks: { editorContext: source } }),
-    },
-    ContextChip as (props: never) => unknown,
-  )), 'dsh-editor: context chip')
+  // Only while the editor is enabled: off, nothing reaches the host (so nothing is
+  // injected for the AI) and DSH's composer is unchanged.
+  const mount = (): (() => void) => {
+    const disposeMirror = mirror(editor.context)
+    const disposeChip = slots.inject('conversation.input.dock', () => slots.register(
+      {
+        name: 'conversation.input.dock',
+        id: 'dsh-editor-context',
+        order: 50,
+        locale: NS,
+        inject: () => ({ remove, hooks: { editorContext: source } }),
+      },
+      ContextChip as (props: never) => unknown,
+    ))
+    return () => {
+      disposeChip()
+      disposeMirror()
+    }
+  }
+  ctx.effect(() => {
+    let dispose: (() => void) | undefined
+    const sync = (): void => {
+      const enabled = editor.settings.getSnapshot()?.enabled === true
+      if (enabled && dispose === undefined) dispose = mount()
+      if (!enabled && dispose !== undefined) {
+        dispose()
+        dispose = undefined
+      }
+    }
+    const unsubscribe = editor.settings.subscribe(sync)
+    sync()
+    return () => {
+      unsubscribe()
+      dispose?.()
+    }
+  }, 'dsh-editor: context while enabled')
 }

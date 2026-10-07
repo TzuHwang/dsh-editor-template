@@ -1,7 +1,7 @@
-// Smoke test (design Q14): installs the bundle into a fresh DSH profile with
-// `dsh plugin add`, boots `dsh web` against a local mock LLM, and drives both
-// layouts in a real browser. Guards DSH upgrades: unit tests mock DSH, this
-// does not.
+// Smoke test: installs the bundle into a fresh DSH profile with `dsh plugin
+// add`, boots `dsh web` against a local mock LLM, and drives it in a real
+// browser: off by default (DSH unchanged), then turned on in its settings.
+// Guards DSH upgrades: unit tests mock DSH, this does not.
 //
 //   pnpm smoke                 build, then run
 //   pnpm smoke --no-build      run against the current lib/ output
@@ -117,11 +117,14 @@ async function openPage(url) {
 
 /** Open a workspace file from DSH's file tree (Ctrl+Alt+P opens and expands it). */
 async function openFromFiles(name) {
-  const entry = page.locator('[data-rightbar-col]').getByText(name, { exact: true })
-  if (!(await eventually(async () => (await entry.count()) > 0, 1_000))) {
+  // Ctrl+Alt+P opens (or focuses) the file tree and expands the sidebar; the
+  // entry is then the one inside the visible tree, not a tab chip of that file.
+  // Shortcuts register shortly after the page settles, so retry a few times.
+  const entry = page.locator('[data-rightbar-col]').getByText(name, { exact: true }).filter({ hasNot: page.locator('[role=tab]') })
+  for (let attempt = 0; attempt < 5; attempt++) {
     await page.locator('body').click({ position: { x: 640, y: 200 } })
     await page.keyboard.press('Control+Alt+P')
-    await eventually(async () => (await entry.count()) > 0)
+    if (await eventually(async () => (await entry.count()) > 0, 2_000)) break
   }
   await entry.last().click()
 }
@@ -135,51 +138,76 @@ try {
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
 
-  // ---- layout A (default) ----
-  console.log('layout A')
+  // ---- installed but not enabled: DSH unchanged ----
+  console.log('off (default)')
   server = await boot()
   await openPage(server.url)
+  const center = page.getByTestId('dsh-editor-center')
+  await openFromFiles('script.py')
+  await page.waitForTimeout(1_500)
+  check('off: a file opens in DSH\'s own preview', (await page.locator('.cm-editor').count()) === 0 && (await center.count()) === 0)
+  check('off: no context chip', (await page.getByTestId('dsh-editor-context-chip').count()) === 0)
+  await composer().click()
+  await page.keyboard.type('hello while off')
+  await page.keyboard.press('Enter')
+  check('off: the AI gets the message without editor context', await eventually(() =>
+    userTurns(llm.requests).some(parts => parts.includes('hello while off')))
+    && !userTurns(llm.requests).some(parts => parts.some(part => part.includes('editor, beside this chat'))))
+
+  // ---- turn the editor on through the settings card ----
+  console.log('settings → on')
+  await page.getByText(/^(插件|Plugins)$/).first().click()
+  await page.getByText('@dsh-editor/bundle').first().click()
+  const enabled = page.getByTestId('dsh-editor-settings-enabled')
+  check('the settings card is on the bundle page', await eventually(async () => (await enabled.count()) > 0))
+  await enabled.check()
+  check('the setting is saved to the profile', await eventually(() => /enabled: true/.test(readFileSync(join(home, 'profiles', 'smoke', 'cordis.patch.yml'), 'utf8'))))
+
+  // ---- on: document in the centre, chat on the right ----
+  console.log('on')
+  await openPage(server.url)
+  // A new session goes straight to the editor, with the chat open beside it.
+  await page.getByText(/^(新会话|New session)$/).first().click()
+  check('on: a new session shows the centre editor', await eventually(async () => (await center.count()) > 0))
+  check('on: the chat opens beside it', await eventually(async () => (await page.locator('[data-testid=dsh-chat-input]:visible').count()) > 0))
+  await center.getByRole('button', { name: /^(完整对话|Full conversation)$/ }).click()
+  const back = page.getByTestId('dsh-editor-back')
+  check('on: full conversation shows DSH\'s start screen for a new session', await eventually(async () => (await center.count()) === 0 && (await back.count()) > 0))
+  await back.click()
+  check('on: back to the editor from there, chat beside it', await eventually(async () => (await center.count()) > 0 && (await page.locator('[data-testid=dsh-chat-input]:visible').count()) > 0))
+  await page.locator('[data-testid=dsh-chat-input]:visible').fill('first message from the chat')
+  await page.locator('[data-testid=dsh-chat-input]:visible').press('Enter')
+  check('on: a new session\'s first message goes from the chat', await eventually(() =>
+    userTurns(llm.requests).some(parts => parts.includes('first message from the chat'))))
+  check('on: the editor stays after the first message', (await center.count()) > 0)
+  // DSH titles the earlier session after the mock's answer.
+  await page.getByText(/^(hello while off|ok)$/).first().click()
+  check('on: a session with messages shows the centre editor', await eventually(async () => (await center.count()) > 0))
   await openFromFiles('notes.md')
-  const status = page.getByTestId('dsh-editor-status')
-  check('a .md file opens in the editor tab', await eventually(async () => (await status.count()) > 0))
-  await page.locator('.cm-line').nth(2).click()
+  check('on: a file opened from the sidebar lands in the centre', await eventually(async () =>
+    (await center.locator('[role=tab]').allInnerTexts()).some(text => text.includes('notes.md'))))
+  const lines = center.locator('.cm-line')
+  check('on: the file loads in the centre editor', await eventually(async () => (await lines.count()) > 2))
+  await lines.nth(2).click()
   await page.keyboard.press('End')
   await page.keyboard.type(' edited')
   check('autosave keeps CRLF and the final newline', await eventually(() => disk('notes.md') === '# Notes\r\n\r\nfirst line edited\r\nsecond line\r\n'), disk('notes.md'))
   writeFileSync(join(workspace, 'notes.md'), `${disk('notes.md')}from disk\r\n`)
-  check('a change on disk reaches the editor', await eventually(async () => (await page.locator('.cm-line').allInnerTexts()).includes('from disk')))
-  check('the context chip shows the open file', await eventually(async () => (await page.getByTestId('dsh-editor-context-chip').count()) > 0))
-  await composer().click()
-  await page.keyboard.type('hello from layout A')
-  await page.keyboard.press('Enter')
-  check('the AI receives the editor context', await eventually(() =>
-    userTurns(llm.requests).some(parts => parts.includes('hello from layout A') && parts.some(part => part.includes('`notes.md` open')))))
+  check('a change on disk reaches the editor', await eventually(async () => (await lines.allInnerTexts()).includes('from disk')))
 
-  // ---- switch to layout B through the settings card ----
-  console.log('settings → layout B')
-  await page.getByText(/^(插件|Plugins)$/).first().click()
-  await page.getByText('@dsh-editor/bundle').first().click()
-  const layout = page.getByTestId('dsh-editor-settings-layout')
-  check('the settings card is on the bundle page', await eventually(async () => (await layout.count()) > 0))
-  await layout.selectOption('main')
-  check('the setting is saved to the profile', await eventually(() => /layout: main/.test(readFileSync(join(home, 'profiles', 'smoke', 'cordis.patch.yml'), 'utf8'))))
-
-  // ---- layout B ----
-  console.log('layout B')
-  await openPage(server.url)
-  await page.getByText('hello from layout A').first().click().catch(() => {})
-  const center = page.getByTestId('dsh-editor-center')
-  check('the centre editor replaces the conversation', await eventually(async () => (await center.count()) > 0))
-  await openFromFiles('script.py')
-  check('a file opened from the sidebar lands in the centre', await eventually(async () =>
-    (await center.locator('[role=tab]').allInnerTexts()).some(text => text.includes('script.py'))))
   await page.getByTestId('dsh-editor-open-chat').click()
-  const input = page.getByTestId('dsh-chat-input')
+  const input = page.locator('[data-testid=dsh-chat-input]:visible')
   check('the chat tab opens', await eventually(async () => (await input.count()) > 0))
+  await lines.nth(2).click()
+  check('the chat shows the editor context', await eventually(async () => (await page.locator('[data-testid=dsh-chat-context]:visible').count()) > 0))
+  await input.fill('hello with context')
+  await input.press('Enter')
+  check('the AI receives the editor context', await eventually(() =>
+    userTurns(llm.requests).some(parts => parts.includes('hello with context') && parts.some(part => part.includes('`notes.md` open')))))
 
   await input.fill('TRIGGER_ASK')
   await input.press('Enter')
-  const question = page.getByTestId('dsh-chat-question')
+  const question = page.locator('[data-testid=dsh-chat-question]:visible')
   check('an AI question shows in the chat', await eventually(async () => (await question.count()) > 0))
   await question.getByRole('button', { name: 'Blue' }).click()
   await question.getByRole('button', { name: /^(提交|Submit)$/ }).click()
@@ -188,12 +216,11 @@ try {
 
   await input.fill('TRIGGER_WRITE')
   await input.press('Enter')
-  const approval = page.getByTestId('dsh-chat-approval')
+  const approval = page.locator('[data-testid=dsh-chat-approval]:visible')
   check('an approval request shows in the chat', await eventually(async () => (await approval.count()) > 0))
   await approval.getByRole('button', { name: /^(允许一次|Allow once)$/ }).click()
-  check('the approved command runs', await eventually(async () => (await approval.count()) === 0 && (await page.getByTestId('dsh-chat-tool').allInnerTexts()).some(text => text.includes('✓ pwsh'))))
+  check('the approved command runs', await eventually(async () => (await approval.count()) === 0 && (await page.locator('[data-testid=dsh-chat-tool]:visible').allInnerTexts()).some(text => text.includes('✓ pwsh'))))
 
-  await openFromFiles('notes.md')
   await input.fill('TRIGGER_EDIT')
   await input.press('Enter')
   check('an AI edit reaches the centre editor', await eventually(async () =>

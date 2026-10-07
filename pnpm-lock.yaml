@@ -142,9 +142,6 @@ importers:
       '@dsh-editor/layout-main':
         specifier: workspace:*
         version: link:../layout-main
-      '@dsh-editor/layout-tab':
-        specifier: workspace:*
-        version: link:../layout-tab
       '@dsh-editor/text':
         specifier: workspace:*
         version: link:../text
@@ -172,12 +169,6 @@ importers:
       marked:
         specifier: ^16.0.0
         version: 16.4.2
-
-  packages/layout-tab:
-    devDependencies:
-      '@dsh-editor/core':
-        specifier: workspace:*
-        version: link:../core
 
   packages/text:
     devDependencies:

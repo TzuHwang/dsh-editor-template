@@ -1,5 +1,5 @@
 /**
- * The centre editor (layout B): a tab bar over the editor frame. It occupies
+ * The centre editor: a tab bar over the editor frame. It occupies
  * `main.conversation`, so it receives the selected session (session-maybe).
  */
 import type { TabsState, Translate } from '@dsh-editor/core'

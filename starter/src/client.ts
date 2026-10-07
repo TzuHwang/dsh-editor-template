@@ -13,7 +13,7 @@ const BUNDLE = 'my-dsh-project'
 export function apply(ctx: CordisContext): void {
   const editor = ctx.editor as EditorService
 
-  // The editor settings (layout, scope) on this bundle's plugin page.
+  // The editor settings (on/off, scope) on this bundle's plugin page.
   ctx.effect(() => editor.registerSettingsCard(BUNDLE), 'my-dsh-project: settings card')
 
   // Project extensions. Each registration returns its disposer; wrap it in ctx.effect.

@@ -51,7 +51,7 @@ function readSettings(form: ConfigForm, service: EditorService): () => void {
     settled = true
     const value = snapshot.value ?? {}
     service.applySettings({
-      layout: value.layout === 'main' ? 'main' : 'tab',
+      enabled: value.enabled === true,
       scope: typeof value.scope === 'string' && value.scope !== '' ? value.scope : DEFAULT_SETTINGS.scope,
     })
   }

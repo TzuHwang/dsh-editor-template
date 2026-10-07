@@ -4,7 +4,7 @@
  * own key, and storage failures leave the editor working in memory.
  *
  * Two parts share one key per scope (design Q10): each file's cursor and
- * scroll, and the centre editor's tabs (layout B). File contents are never
+ * scroll, and the centre editor's tabs. File contents are never
  * stored: disk is the single source of truth.
  */
 
@@ -15,7 +15,7 @@ export interface FileViewState {
   readonly scrollTop: number
 }
 
-/** The centre editor's tabs (layout B). Paths are as session addresses carry them. */
+/** The centre editor's tabs. Paths are as session addresses carry them. */
 export interface TabsState {
   readonly open: readonly string[]
   readonly active: string | null

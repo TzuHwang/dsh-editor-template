@@ -14,7 +14,7 @@ const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name
 const profile = option('--profile', 'web')
 const { template, release } = manifest.dshEditor
 const project = option('--project', `<git URL of ${manifest.name} at a tag with lib/ built>`)
-const templatePackages = ['core', 'text', 'layout-tab', 'layout-main', 'context']
+const templatePackages = ['core', 'text', 'layout-main', 'context']
 
 console.log([
   `dsh plugin --profile ${profile} add`,

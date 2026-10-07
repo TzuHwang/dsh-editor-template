@@ -35,11 +35,12 @@ const RESYNC = '\0resync'
 
 /** Editor settings as the browser sees them; `undefined` until DSH's settings answered. */
 export interface EditorSettings {
-  readonly layout: 'tab' | 'main'
+  /** Off by default: DSH is unchanged until the user turns the editor on. */
+  readonly enabled: boolean
   readonly scope: string
 }
 
-export const DEFAULT_SETTINGS: EditorSettings = { layout: 'tab', scope: workspaceScope.id }
+export const DEFAULT_SETTINGS: EditorSettings = { enabled: false, scope: workspaceScope.id }
 
 export class EditorService {
   readonly engines = new EngineRegistry()
@@ -57,7 +58,7 @@ export class EditorService {
     this.scopes.register(sessionScope)
   }
 
-  /** Settings (design Q9): mounts register for their layout once these are known. */
+  /** Settings: everything visible registers only once these are known and `enabled` is on. */
   readonly settings = {
     getSnapshot: (): EditorSettings | undefined => this.settingsValue,
     subscribe: (listener: () => void): (() => void) => {

@@ -6,8 +6,6 @@
       name: '@dsh-editor/core'
     - id: dsh-editor-text
       name: '@dsh-editor/text'
-    - id: dsh-editor-layout-tab
-      name: '@dsh-editor/layout-tab'
     - id: dsh-editor-layout-main
       name: '@dsh-editor/layout-main'
     - id: dsh-editor-context

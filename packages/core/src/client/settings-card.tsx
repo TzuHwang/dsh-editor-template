@@ -4,6 +4,7 @@
  * `plugins.bundle.config` slot under its bundle's package name. Writes go
  * through the entry's config form and apply on the next page load.
  */
+import { useEffect, useState } from 'react'
 import type { Translate } from './frame.ts'
 import type { EditorSettings } from './service.ts'
 
@@ -17,7 +18,7 @@ interface SettingsCardProps {
   readonly useForm: <T>(selector: (snapshot: ConfigFormSnapshot) => T) => T
   /** Scope strategy ids to offer; projects may register more. */
   readonly scopes: readonly string[]
-  readonly set: (field: keyof EditorSettings, value: string) => void
+  readonly set: (field: keyof EditorSettings, value: string | boolean) => void
 }
 
 const label = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 } as const
@@ -27,19 +28,33 @@ const select = {
 } as const
 
 export function SettingsCard({ t, useForm, scopes, set }: SettingsCardProps) {
-  const layout = useForm(snapshot => snapshot.value?.layout ?? 'tab')
+  const saved = useForm(snapshot => snapshot.value?.enabled === true)
+  // The form answers after the write round-trips; show the click at once.
+  const [pending, setPending] = useState<boolean | undefined>(undefined)
+  useEffect(() => { if (pending === saved) setPending(undefined) }, [pending, saved])
+  const enabled = pending ?? saved
   const scope = useForm(snapshot => snapshot.value?.scope ?? 'workspace')
   const ready = useForm(snapshot => snapshot.status === 'ready')
   const scopeLabel = (id: string): string =>
     id === 'workspace' || id === 'session' ? t(`settings.scope.${id}`) : id
   return (
     <div data-testid="dsh-editor-settings" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}>
-      <label style={label}>
-        {t('settings.layout')}
-        <select data-testid="dsh-editor-settings-layout" style={select} disabled={!ready} value={layout} onChange={event => set('layout', event.target.value)}>
-          <option value="tab">{t('settings.layout.tab')}</option>
-          <option value="main">{t('settings.layout.main')}</option>
-        </select>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          data-testid="dsh-editor-settings-enabled"
+          disabled={!ready}
+          checked={enabled}
+          onChange={(event) => {
+            setPending(event.target.checked)
+            set('enabled', event.target.checked)
+          }}
+          style={{ marginTop: 3 }}
+        />
+        <span>
+          {t('settings.enabled')}
+          <span style={{ display: 'block', fontSize: 12, opacity: 0.6 }}>{t('settings.enabled.hint')}</span>
+        </span>
       </label>
       <label style={label}>
         {t('settings.scope')}

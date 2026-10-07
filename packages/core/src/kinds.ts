@@ -1,13 +1,12 @@
 /**
- * Right-sidebar tab kinds the layouts register. The sidebar persists its tabs
- * across reloads, so after the `layout` setting changes, tabs of the other
- * layout's kinds come back; each layout registers those kinds too and turns
- * such a tab into its own equivalent (or closes it).
+ * Right-sidebar tab kinds the editor registers. The sidebar persists its tabs
+ * across reloads, so after the editor is turned off these tabs come back with
+ * nothing to draw them; the layout then registers the kinds only to close them.
  */
 
-/** Layout A: an editor tab. */
-export const EDITOR_TAB_KIND = 'dsh-editor'
-/** Layout B: the chat tab. */
+/** The AI chat beside the centre editor. */
 export const CHAT_TAB_KIND = 'dsh-editor-chat'
-/** Layout B: a file opened from the sidebar, handed to the centre. */
+/** A file opened from the sidebar, handed to the centre editor. */
 export const REDIRECT_TAB_KIND = 'dsh-editor-redirect'
+/** Editor tabs of the sidebar layout early builds had; they only close themselves now. */
+export const LEGACY_EDITOR_TAB_KIND = 'dsh-editor'
