@@ -32,10 +32,12 @@ same page sets which sessions share open files and cursor positions:
 On, the editor replaces DSH's `main.conversation` whenever a session is selected, a new one
 included, and the AI chat opens beside it. "Full conversation" shows DSH's own screen (tool
 details; for a new session, its start screen with the workspace picker) with a floating "Back to
-editor" button. Files opened from the sidebar go to the center. The chat tab handles approvals and
-AI questions; it does not offer model
-selection (use the full conversation for that). File tabs DSH's own preview opened before the
-editor was turned on stay DSH's; open the file from the file tree to edit it.
+editor" button. Files opened from the sidebar go to the center. The chat tab is DSH's own
+conversation (transcript, tool cards, composer with model selection, approvals and AI questions),
+embedded through the public `conversation.content` Component Factory as DSH's subagent sidebar
+chat does. DSH supports one editable composer per session, so while the full conversation is
+shown the chat tab only points to it. File tabs DSH's own preview opened before the editor was
+turned on stay DSH's; open the file from the file tree to edit it.
 
 ## Starting a project
 
@@ -65,7 +67,7 @@ editor.engines.register({
   selfManaged: true,
   mount(host, binding) {   // binding: sessionId, path, workspaceRoot, initialView, onViewChange, onSelection
     return {
-      flush: async () => { /* save now: awaited before a chat message is sent */ },
+      flush: async () => { /* save now: awaited by editor.flushAll() */ },
       focus() {},
       destroy: () => { /* a returned promise keeps the element (hidden) until it settles */ },
     }
@@ -73,7 +75,9 @@ editor.engines.register({
 })
 ```
 
-The engine brings its own reading, saving (e.g. a host route of its own) and file watching.
+The engine brings its own reading, saving (e.g. a host route of its own) and file watching. It
+should save when focus leaves it, as the text editor does: messaging the AI starts with a click in
+the chat's composer, and DSH's composer offers no hook to await a save before sending.
 `smoke/fixtures/self-managed-engine` is a minimal example.
 
 ## Develop

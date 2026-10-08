@@ -135,7 +135,10 @@ export class EditorService {
     }
   }
 
-  /** Save every open document now; called before a chat message is sent (M2) and on Ctrl+S. */
+  /**
+   * Save every open document now, for code that needs disk current before it acts. The chat
+   * (DSH's own composer) cannot await it; editors save on blur instead (M2).
+   */
   async flushAll(): Promise<void> {
     await Promise.all([
       ...[...this.open.values()].map(entry => entry.doc.flush()),

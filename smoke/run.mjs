@@ -176,17 +176,26 @@ try {
   // ---- on: document in the center, chat on the right ----
   console.log('on')
   await openPage(server.url)
+  // The chat is DSH's own conversation embedded in the sidebar tab; its composer is a Lexical editor.
+  const chat = page.locator('[data-testid=dsh-chat]:visible')
+  const chatInput = chat.locator('[role=textbox][contenteditable=true]')
+  const sendFromChat = async (text) => {
+    await chatInput.click()
+    await page.keyboard.type(text)
+    await page.keyboard.press('Enter')
+  }
   // A new session goes straight to the editor, with the chat open beside it.
   await page.getByText(/^(新会话|New session)$/).first().click()
   check('on: a new session shows the center editor', await eventually(async () => (await center.count()) > 0))
-  check('on: the chat opens beside it', await eventually(async () => (await page.locator('[data-testid=dsh-chat-input]:visible').count()) > 0))
+  check('on: the chat opens beside it, with DSH\'s own composer', await eventually(async () => (await chatInput.count()) === 1))
   await center.getByRole('button', { name: /^(完整对话|Full conversation)$/ }).click()
   const back = page.getByTestId('dsh-editor-back')
   check('on: full conversation shows DSH\'s start screen for a new session', await eventually(async () => (await center.count()) === 0 && (await back.count()) > 0))
+  check('on: meanwhile the chat tab steps aside (one composer per session)', await eventually(async () =>
+    (await page.getByTestId('dsh-chat-in-center').count()) > 0 && (await chat.count()) === 0))
   await back.click()
-  check('on: back to the editor from there, chat beside it', await eventually(async () => (await center.count()) > 0 && (await page.locator('[data-testid=dsh-chat-input]:visible').count()) > 0))
-  await page.locator('[data-testid=dsh-chat-input]:visible').fill('first message from the chat')
-  await page.locator('[data-testid=dsh-chat-input]:visible').press('Enter')
+  check('on: back to the editor from there, chat beside it', await eventually(async () => (await center.count()) > 0 && (await chatInput.count()) === 1))
+  await sendFromChat('first message from the chat')
   check('on: a new session\'s first message goes from the chat', await eventually(() =>
     userTurns(llm.requests).some(parts => parts.includes('first message from the chat'))))
   check('on: the editor stays after the first message', (await center.count()) > 0)
@@ -218,11 +227,10 @@ try {
   await page.waitForTimeout(1_000)
   check('self-managed: the core does not save it on its own', diskBytes() === '00ff10', diskBytes())
   await page.getByTestId('dsh-editor-open-chat').click()
-  const chatInput = page.locator('[data-testid=dsh-chat-input]:visible')
-  check('self-managed: the chat opens beside it', await eventually(async () => (await chatInput.count()) > 0))
-  await chatInput.fill('save the binary first')
-  await chatInput.press('Enter')
-  check('self-managed: sending a chat message flushes it first', await eventually(() => diskBytes() === '00ff102a'), diskBytes())
+  check('self-managed: the chat opens beside it', await eventually(async () => (await chatInput.count()) === 1))
+  // Clicking the composer moves focus out of the engine, which saves on blur (as the text editor does).
+  await sendFromChat('save the binary first')
+  check('self-managed: messaging the AI saves it first (the engine saves on blur)', await eventually(() => diskBytes() === '00ff102a'), diskBytes())
   await append()
   await notesTab()
   check('self-managed: closing its view waits for its save', await eventually(() => diskBytes() === '00ff102a2a'), diskBytes())
@@ -231,33 +239,31 @@ try {
   check('back on the text file', await eventually(async () => (await lines.count()) > 2))
 
   await page.getByTestId('dsh-editor-open-chat').click()
-  const input = page.locator('[data-testid=dsh-chat-input]:visible')
-  check('the chat tab opens', await eventually(async () => (await input.count()) > 0))
+  check('the chat tab opens', await eventually(async () => (await chatInput.count()) === 1))
   await lines.nth(2).click()
-  check('the chat shows the editor context', await eventually(async () => (await page.locator('[data-testid=dsh-chat-context]:visible').count()) > 0))
-  await input.fill('hello with context')
-  await input.press('Enter')
+  check('the chat\'s composer shows the editor context', await eventually(async () =>
+    (await chat.getByTestId('dsh-editor-context-chip').count()) > 0))
+  await sendFromChat('hello with context')
   check('the AI receives the editor context', await eventually(() =>
     userTurns(llm.requests).some(parts => parts.includes('hello with context') && parts.some(part => part.includes('`notes.md` open')))))
 
-  await input.fill('TRIGGER_ASK')
-  await input.press('Enter')
-  const question = page.locator('[data-testid=dsh-chat-question]:visible')
-  check('an AI question shows in the chat', await eventually(async () => (await question.count()) > 0))
-  await question.getByRole('button', { name: 'Blue' }).click()
-  await question.getByRole('button', { name: /^(提交|Submit)$/ }).click()
+  await sendFromChat('TRIGGER_ASK')
+  const blue = chat.getByRole('radio', { name: 'Blue' })
+  check('an AI question shows in the chat', await eventually(async () => (await blue.count()) > 0))
+  await blue.click()
+  await chat.getByRole('button', { name: /^(提交|Submit)$/ }).click()
   check('the answer reaches the AI', await eventually(() =>
     userTurns(llm.requests).some(parts => parts.some(part => part.includes('[tool_result]') && part.includes('Blue')))))
 
-  await input.fill('TRIGGER_WRITE')
-  await input.press('Enter')
-  const approval = page.locator('[data-testid=dsh-chat-approval]:visible')
-  check('an approval request shows in the chat', await eventually(async () => (await approval.count()) > 0))
-  await approval.getByRole('button', { name: /^(允许一次|Allow once)$/ }).click()
-  check('the approved command runs', await eventually(async () => (await approval.count()) === 0 && (await page.locator('[data-testid=dsh-chat-tool]:visible').allInnerTexts()).some(text => text.includes('✓ pwsh'))))
+  const toolResults = () => userTurns(llm.requests).flat().filter(part => part.includes('[tool_result]')).length
+  await sendFromChat('TRIGGER_WRITE')
+  const allow = chat.getByRole('button', { name: /^(允许一次|Allow once)$/ })
+  check('an approval request shows in the chat', await eventually(async () => (await allow.count()) > 0))
+  const before = toolResults()
+  await allow.first().click()
+  check('the approved command runs', await eventually(async () => (await allow.count()) === 0 && toolResults() > before))
 
-  await input.fill('TRIGGER_EDIT')
-  await input.press('Enter')
+  await sendFromChat('TRIGGER_EDIT')
   check('an AI edit reaches the center editor', await eventually(async () =>
     (await center.locator('.cm-line').allInnerTexts()).includes('written by the AI')), 15_000)
   check('the AI edit is on disk', disk('notes.md') === AI_EDIT_TEXT, disk('notes.md'))

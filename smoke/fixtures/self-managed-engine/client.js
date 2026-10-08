@@ -1,6 +1,6 @@
 // Smoke-test fixture: a self-managed engine for `.bin` files. The core only
 // mounts it; it reads the bytes itself (workspaceFiles), shows them in hex,
-// appends 0x2a on a button press, and saves only when the core asks (`flush`)
+// appends 0x2a on a button press, and saves when focus leaves it, when asked (`flush`)
 // or when its view closes (`destroy`). Written in the client bundle format DSH
 // loads (see scripts/build-package.mjs), so it needs no build.
 window.__ModuleLoader__.load({ id: 'dsh-editor-smoke-self-managed', factory: () => {
@@ -47,6 +47,8 @@ window.__ModuleLoader__.load({ id: 'dsh-editor-smoke-self-managed', factory: () 
           throw new Error(`save failed: HTTP ${response.status}`)
         }
       }
+      // Leaving the engine (e.g. for the chat composer) saves, so the AI reads what is on screen.
+      view.addEventListener('focusout', () => { void flush().catch(() => {}) })
 
       return {
         flush,

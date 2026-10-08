@@ -81,7 +81,10 @@ export interface SelfManagedBinding {
 }
 
 export interface SelfManagedInstance {
-  /** Save pending changes now; awaited before a chat message is sent, so the AI reads what is on screen. */
+  /**
+   * Save pending changes now; awaited by `editor.flushAll()`. The engine should also save when
+   * focus leaves it: messaging the AI starts with a click in the chat's composer.
+   */
   flush(): Promise<void>
   focus(): void
   /**

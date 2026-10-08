@@ -11,16 +11,13 @@
  *   where DSH's start screen picks a new session's workspace).
  * - Files opened from the sidebar land in the center: a redirect tab type
  *   outranks DSH's viewers, hands the file to the center and closes itself.
- * - Chat: see chat.tsx.
+ * - Chat: DSH's own conversation embedded in the right sidebar; see chat.tsx.
  */
-import type { ContextSnapshot, CordisContext, EditorService, Translate } from '@dsh-editor/core'
-import { effectiveContext } from '@dsh-editor/core/context'
+import type { CordisContext, EditorService, Translate } from '@dsh-editor/core'
 import { CHAT_TAB_KIND as CHAT_KIND, LEGACY_EDITOR_TAB_KIND, REDIRECT_TAB_KIND as REDIRECT_KIND } from '@dsh-editor/core/kinds'
-import DOMPurify from 'dompurify'
-import { marked } from 'marked'
 import { useEffect } from 'react'
 import { Center } from './center.tsx'
-import { CHAT_STYLE, Chat } from './chat.tsx'
+import { Chat, type LayoutMode } from './chat.tsx'
 import { en, zh } from './locales.ts'
 
 export const name = 'dsh-editor-layout-main'
@@ -43,25 +40,12 @@ interface Observable<T> {
   getSnapshot(): T
   subscribe(listener: () => void): () => void
 }
-interface Conversation {
-  send(text: string): Promise<void>
-  cancel(): Promise<void>
-}
 interface Sessions {
   readonly list: Observable<{ byId: Record<string, { cwd?: string; blank: boolean } | undefined> }>
-  scope(id: string): { get(name: 'conversation'): Conversation | undefined } | undefined
 }
 interface Locale {
   register(ns: string, dicts: Record<string, object>): () => void
   bind(ns: string): Translate
-}
-
-function ensureStyle(): () => void {
-  const style = document.createElement('style')
-  style.dataset.dshEditorChat = ''
-  style.textContent = CHAT_STYLE
-  document.head.appendChild(style)
-  return () => style.remove()
 }
 
 /** Watch several observables with one callback; returns the disposer. */
@@ -123,16 +107,29 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
 
   const workspaceRootOf = (sessionId: string | undefined): string | undefined =>
     sessionId === undefined ? undefined : sessions.list.getSnapshot().byId[sessionId]?.cwd
-  const conversation = (sessionId: string): Conversation | undefined => sessions.scope(sessionId)?.get('conversation')
 
   // ---- center, shown unless blank / no session / full conversation requested ----
 
-  let mode: 'editor' | 'full' = 'editor'
+  let mode: LayoutMode = 'editor'
+  /** The chat tab follows the mode: DSH supports one editable composer per Session. */
+  const modeListeners = new Set<() => void>()
+  const layoutMode: Observable<LayoutMode> = {
+    getSnapshot: () => mode,
+    subscribe: (listener) => {
+      modeListeners.add(listener)
+      return () => { modeListeners.delete(listener) }
+    },
+  }
+  const setMode = (next: LayoutMode): void => {
+    mode = next
+    syncCenter()
+    for (const listener of modeListeners) listener()
+  }
   let disposeCenter: (() => void) | undefined
   let disposeBack: (() => void) | undefined
 
-  const showFull = (): void => { mode = 'full'; syncCenter() }
-  const back = (): void => { mode = 'editor'; syncCenter() }
+  const showFull = (): void => setMode('full')
+  const back = (): void => setMode('editor')
   const openChat = (): void => sidebar.openTab(CHAT_KIND)
   const openFiles = (): void => sidebar.openTab(FILES_KIND)
 
@@ -242,25 +239,15 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
     title: () => t('chat.title'),
     guide: [{ id: 'chat', order: -10, title: () => t('guide.chat'), description: () => t('guide.chatDescription') }],
   }))
-  const renderMarkdown = (text: string): string => DOMPurify.sanitize(marked.parse(text, { async: false }))
+  // DSH's own conversation, embedded. The editor context chip comes with it: @dsh-editor/context
+  // docks it in DSH's composer. Files are saved before the AI reads them because leaving the
+  // editor (clicking the composer) saves at once.
   disposers.push(slots.inject('sidebar.right.pane.tab', () => slots.register(
     {
       name: 'sidebar.right.pane.tab',
       key: CHAT_ID,
       locale: NS,
-      inject: () => ({
-        send: async (sessionId: string, text: string) => {
-          // The AI reads files from disk: save what the editor shows first (design Q5).
-          await editor.flushAll()
-          await conversation(sessionId)?.send(text)
-        },
-        cancel: (sessionId: string) => { void conversation(sessionId)?.cancel().catch(() => {}) },
-        removeContext: (sessionId: string) => editor.context.suppress(sessionId),
-        effectiveContext: (snapshot: ContextSnapshot, sessionId: string) => effectiveContext(snapshot[sessionId]),
-        showFull,
-        renderMarkdown,
-        hooks: { editorContext: { getSnapshot: editor.context.getSnapshot, subscribe: editor.context.subscribe } },
-      }),
+      inject: () => ({ back, hooks: { layoutMode } }),
     },
     Chat as (props: never) => unknown,
   )))
@@ -312,9 +299,7 @@ export function apply(ctx: CordisContext): void {
       dispose?.()
       state = next
       if (next === 'on') {
-        const disposeStyle = ensureStyle()
-        const disposeMount = mount(ctx, editor)
-        dispose = combine([disposeStyle, disposeMount, retire(ctx, [LEGACY_EDITOR_TAB_KIND])])
+        dispose = combine([mount(ctx, editor), retire(ctx, [LEGACY_EDITOR_TAB_KIND])])
       } else {
         dispose = retire(ctx, [CHAT_KIND, REDIRECT_KIND, LEGACY_EDITOR_TAB_KIND])
       }

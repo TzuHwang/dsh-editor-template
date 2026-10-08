@@ -163,12 +163,6 @@ importers:
       '@dsh-editor/core':
         specifier: workspace:*
         version: link:../core
-      dompurify:
-        specifier: ^3.2.0
-        version: 3.4.16
-      marked:
-        specifier: ^16.0.0
-        version: 16.4.2
 
   packages/text:
     devDependencies:

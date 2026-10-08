@@ -24,8 +24,6 @@
     }
   },
   "devDependencies": {
-    "@dsh-editor/core": "workspace:*",
-    "dompurify": "^3.2.0",
-    "marked": "^16.0.0"
+    "@dsh-editor/core": "workspace:*"
   }
 }
