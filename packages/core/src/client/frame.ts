@@ -5,7 +5,8 @@
  * subscriptions of their own).
  */
 import type { DocumentStatus } from '../document.ts'
-import type { EngineInstance } from '../engines.ts'
+import { isSelfManaged, type EngineInstance, type SelfManagedEngine } from '../engines.ts'
+import type { SessionFileAddress } from '../contract/dsh.ts'
 import type { EditorService } from './service.ts'
 import { toEditorContext } from '../context.ts'
 
@@ -49,6 +50,7 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
     root.append(message(document, t('unsupported')))
     return () => root.remove()
   }
+  if (isSelfManaged(engine)) return attachSelfManaged(editor, root, engine, file, target.workspaceRoot)
 
   const status = el(document, 'div', 'dsh-editor-frame__status')
   const banner = el(document, 'div', 'dsh-editor-frame__banner')
@@ -128,6 +130,52 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
     instance?.destroy()
     handle.release()
     root.remove()
+  }
+}
+
+/**
+ * A self-managed engine gets the frame's element and nothing else from the
+ * document side: no status line, banner, reads or saves. It is included in
+ * `flushAll`, and its view state and AI context go through the shared stores.
+ */
+function attachSelfManaged(
+  editor: EditorService,
+  root: HTMLElement,
+  engine: SelfManagedEngine,
+  file: SessionFileAddress,
+  workspaceRoot: string | undefined,
+): () => void {
+  const engineHost = el(root.ownerDocument, 'div', 'dsh-editor-frame__engine')
+  root.append(engineHost)
+  const scopeKey = editor.scopeKey(file.sessionId, workspaceRoot)
+  /** This view's identity in the per-session context store. */
+  const owner = {}
+  const instance = engine.mount(engineHost, {
+    sessionId: file.sessionId,
+    path: file.path,
+    extension: file.path.slice(file.path.lastIndexOf('.') + 1).toLowerCase(),
+    workspaceRoot,
+    initialView: scopeKey === null ? undefined : editor.viewState.get(scopeKey, file.path),
+    onViewChange: view => { if (scopeKey !== null) editor.viewState.set(scopeKey, file.path, view) },
+    onSelection: (info, passive) => {
+      const context = toEditorContext(file.path, info)
+      if (passive) editor.context.update(file.sessionId, owner, context)
+      else editor.context.set(file.sessionId, owner, context)
+    },
+  })
+  const removeFlusher = editor.addFlusher(() => instance.flush())
+
+  return () => {
+    removeFlusher()
+    editor.context.release(file.sessionId, owner)
+    const closing = instance.destroy()
+    if (closing === undefined) {
+      root.remove()
+      return
+    }
+    // The engine finishes something (e.g. a save) that needs it alive: keep it in the page, hidden.
+    root.style.display = 'none'
+    void closing.catch(() => undefined).finally(() => root.remove())
   }
 }
 

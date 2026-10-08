@@ -1,0 +1,4 @@
+# Smoke-test fixture, installed next to @dsh-editor/bundle by smoke/run.mjs.
+- insert:
+    - id: dsh-editor-smoke-self-managed
+      name: dsh-editor-smoke-self-managed

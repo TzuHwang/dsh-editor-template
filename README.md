@@ -54,6 +54,28 @@ editor.scopes.register({ id: 'branch', resolveKey: env => /* ... */ null })
 An engine mounts into a DOM element and talks to the document only through its `EngineBinding`
 (`onLocalChange`, `save`, `applyExternal`). Saving, conflict handling and reloads are the core's job.
 
+The core reads and saves text only. An engine for another format (`.odt`, `.docx`, …) registers as
+self-managed and handles its file itself; the core resolves it by extension and mounts it in the
+center, and does nothing else for it (no reads, saves, status line or conflict prompt):
+
+```ts
+editor.engines.register({
+  id: 'odt',
+  extensions: ['odt'],
+  selfManaged: true,
+  mount(host, binding) {   // binding: sessionId, path, workspaceRoot, initialView, onViewChange, onSelection
+    return {
+      flush: async () => { /* save now: awaited before a chat message is sent */ },
+      focus() {},
+      destroy: () => { /* a returned promise keeps the element (hidden) until it settles */ },
+    }
+  },
+})
+```
+
+The engine brings its own reading, saving (e.g. a host route of its own) and file watching.
+`smoke/fixtures/self-managed-engine` is a minimal example.
+
 ## Develop
 
 ```sh

@@ -49,6 +49,8 @@ export class EditorService {
   /** What each session's editor shows, for the AI (design Q6). */
   readonly context = new ContextStore()
   private readonly open = new Map<string, OpenDocument>()
+  /** Mounted self-managed engines' save functions, run by `flushAll`. */
+  private readonly flushers = new Set<() => Promise<void>>()
   private settingsValue: EditorSettings | undefined
   private readonly settingsListeners = new Set<() => void>()
 
@@ -135,7 +137,17 @@ export class EditorService {
 
   /** Save every open document now; called before a chat message is sent (M2) and on Ctrl+S. */
   async flushAll(): Promise<void> {
-    await Promise.all([...this.open.values()].map(entry => entry.doc.flush()))
+    await Promise.all([
+      ...[...this.open.values()].map(entry => entry.doc.flush()),
+      // A self-managed engine's failure is its own to show; it must not block the message.
+      ...[...this.flushers].map(flush => flush().catch(() => undefined)),
+    ])
+  }
+
+  /** Include a mounted self-managed engine in `flushAll`; returns the function that removes it. */
+  addFlusher(flush: () => Promise<void>): () => void {
+    this.flushers.add(flush)
+    return () => { this.flushers.delete(flush) }
   }
 
   private createIO(file: SessionFileAddress, onSeparator: (separator: '\n' | '\r\n') => void): DocumentIO {

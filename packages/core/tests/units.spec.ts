@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseSessionFileAddress } from '../src/contract/dsh.ts'
 import { diffText } from '../src/diff.ts'
-import { EngineRegistry, extensionOf, type EditorEngine } from '../src/engines.ts'
+import { EngineRegistry, extensionOf, isSelfManaged, type EditorEngine, type SelfManagedEngine } from '../src/engines.ts'
 import { ScopeRegistry, sessionScope, workspaceScope } from '../src/scopes.ts'
 import { NotTextError, decodeText } from '../src/text-codec.ts'
 import { STORAGE_PREFIX, ViewStateStore, type KeyValueStorage } from '../src/view-state.ts'
@@ -9,6 +9,13 @@ import { STORAGE_PREFIX, ViewStateStore, type KeyValueStorage } from '../src/vie
 const engine = (id: string, extensions: string[]): EditorEngine => ({
   id,
   extensions,
+  mount: () => { throw new Error('not mounted in tests') },
+})
+
+const selfManaged = (id: string, extensions: string[]): SelfManagedEngine => ({
+  id,
+  extensions,
+  selfManaged: true,
   mount: () => { throw new Error('not mounted in tests') },
 })
 
@@ -61,6 +68,19 @@ describe('EngineRegistry', () => {
     const registry = new EngineRegistry()
     registry.register(engine('text', ['md']))
     expect(() => registry.register(engine('text', ['py']))).toThrow(/already registered/)
+  })
+
+  it('holds self-managed engines in the same extension order, and tells them apart', () => {
+    const registry = new EngineRegistry()
+    registry.register(engine('text', ['txt', 'odt']))
+    const dispose = registry.register(selfManaged('office', ['odt', 'docx']))
+    const office = registry.resolve('report.ODT')
+    expect(office?.id).toBe('office')
+    expect(office !== undefined && isSelfManaged(office)).toBe(true)
+    expect(isSelfManaged(registry.resolve('a.txt')!)).toBe(false)
+    dispose()
+    expect(registry.resolve('report.odt')?.id).toBe('text')
+    expect(registry.resolve('a.docx')).toBeUndefined()
   })
 
   it('extensionOf ignores directories with dots', () => {

@@ -70,6 +70,8 @@ const workspace = join(documents, 'deepseek-harness', 'default-workspace')
 mkdirSync(workspace, { recursive: true })
 writeFileSync(join(workspace, 'notes.md'), '# Notes\r\n\r\nfirst line\r\nsecond line\r\n')
 writeFileSync(join(workspace, 'script.py'), 'print("hi")\n')
+// Not text: only a self-managed engine (the fixture) can open it.
+writeFileSync(join(workspace, 'data.bin'), new Uint8Array([0x00, 0xff, 0x10]))
 const overlay = join(temp, 'smoke.patch.yml')
 writeFileSync(overlay, `- id: workspace-controller\n  config:\n    documentsDirectory: '${posix(documents)}'\n`)
 
@@ -77,6 +79,8 @@ const env = { ...process.env, DSH_HOME: home }
 const dsh = (dshArgs, options = {}) => run(process.execPath, [dshBin, ...dshArgs], { cwd: temp, env, shell: false, ...options })
 dsh(['--profile', 'smoke', '--from-default-profile', 'web', '--dump-config'], { stdio: 'ignore' })
 dsh(['plugin', '--profile', 'smoke', 'add', posix(join(root, 'packages', 'bundle'))])
+// An engine registered from outside, as a project does for a format that is not text.
+dsh(['plugin', '--profile', 'smoke', 'add', posix(join(root, 'smoke', 'fixtures', 'self-managed-engine'))])
 
 const llm = await startMockLlm(posix(workspace))
 let server
@@ -200,6 +204,31 @@ try {
   check('autosave keeps CRLF and the final newline', await eventually(() => disk('notes.md') === '# Notes\r\n\r\nfirst line edited\r\nsecond line\r\n'), disk('notes.md'))
   writeFileSync(join(workspace, 'notes.md'), `${disk('notes.md')}from disk\r\n`)
   check('a change on disk reaches the editor', await eventually(async () => (await lines.allInnerTexts()).includes('from disk')))
+
+  // ---- a self-managed engine (the fixture): it reads and saves itself, the core only mounts it ----
+  const diskBytes = () => readFileSync(join(workspace, 'data.bin')).toString('hex')
+  const shownBytes = center.getByTestId('smoke-bin-bytes')
+  const append = () => center.getByTestId('smoke-bin-append').click()
+  const notesTab = () => center.locator('[role=tab]').filter({ hasText: 'notes.md' }).click()
+  await openFromFiles('data.bin')
+  check('self-managed: a file that is not text opens in its engine in the center', await eventually(async () =>
+    (await shownBytes.count()) > 0 && (await shownBytes.innerText()) === '00 ff 10'))
+  check('self-managed: the core shows no status line for it', (await center.getByTestId('dsh-editor-status').count()) === 0)
+  await append()
+  await page.waitForTimeout(1_000)
+  check('self-managed: the core does not save it on its own', diskBytes() === '00ff10', diskBytes())
+  await page.getByTestId('dsh-editor-open-chat').click()
+  const chatInput = page.locator('[data-testid=dsh-chat-input]:visible')
+  check('self-managed: the chat opens beside it', await eventually(async () => (await chatInput.count()) > 0))
+  await chatInput.fill('save the binary first')
+  await chatInput.press('Enter')
+  check('self-managed: sending a chat message flushes it first', await eventually(() => diskBytes() === '00ff102a'), diskBytes())
+  await append()
+  await notesTab()
+  check('self-managed: closing its view waits for its save', await eventually(() => diskBytes() === '00ff102a2a'), diskBytes())
+  check('self-managed: and then removes it', await eventually(async () =>
+    (await center.locator('.dsh-editor-frame').count()) === 1 && (await shownBytes.count()) === 0))
+  check('back on the text file', await eventually(async () => (await lines.count()) > 2))
 
   await page.getByTestId('dsh-editor-open-chat').click()
   const input = page.locator('[data-testid=dsh-chat-input]:visible')

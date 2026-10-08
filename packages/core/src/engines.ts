@@ -5,6 +5,9 @@
  * the document through an {@link EngineBinding}. The text engine (CodeMirror)
  * ships with the template; a downstream project adds e.g. an `odt` engine by
  * registering it, without touching the template.
+ *
+ * The core reads, saves and syncs text only. An engine for another format
+ * registers as self-managed ({@link SelfManagedEngine}): the core just mounts it.
  */
 import type { SelectionInfo } from './context.ts'
 import type { FileViewState } from './view-state.ts'
@@ -57,6 +60,58 @@ export interface EditorEngine {
   mount(host: HTMLElement, binding: EngineBinding): EngineInstance
 }
 
+/**
+ * What a self-managed engine receives: the file's address and the editor's
+ * shared services, but no content. The engine reads, saves and watches the file
+ * itself (for formats the text pipeline cannot hold, e.g. `.odt`).
+ */
+export interface SelfManagedBinding {
+  readonly sessionId: string
+  /** Workspace-relative (or absolute) path; the extension picked this engine. */
+  readonly path: string
+  /** Lower-case extension without the dot. */
+  readonly extension: string
+  /** The session's workspace root, when known. */
+  readonly workspaceRoot: string | undefined
+  readonly initialView: FileViewState | undefined
+  /** Report cursor / scroll so it survives reloads. */
+  onViewChange(view: FileViewState): void
+  /** Cursor or selection moved, for the AI context; see {@link EngineBinding.onSelection}. */
+  onSelection(info: SelectionInfo, passive: boolean): void
+}
+
+export interface SelfManagedInstance {
+  /** Save pending changes now; awaited before a chat message is sent, so the AI reads what is on screen. */
+  flush(): Promise<void>
+  focus(): void
+  /**
+   * The view closes. A returned promise keeps the engine's element in the page,
+   * hidden, until it settles (e.g. to finish a save that needs the live engine).
+   */
+  destroy(): void | Promise<void>
+}
+
+/**
+ * An engine that manages its own document: the core resolves it by extension
+ * and mounts it, and does nothing else for it (no reading, saving, status or
+ * conflict handling).
+ */
+export interface SelfManagedEngine {
+  /** Unique engine id. */
+  readonly id: string
+  /** Lower-case extensions without the dot. */
+  readonly extensions: readonly string[]
+  readonly selfManaged: true
+  mount(host: HTMLElement, binding: SelfManagedBinding): SelfManagedInstance
+}
+
+/** Anything the registry holds. */
+export type RegisteredEngine = EditorEngine | SelfManagedEngine
+
+export function isSelfManaged(engine: RegisteredEngine): engine is SelfManagedEngine {
+  return 'selfManaged' in engine && engine.selfManaged === true
+}
+
 /** Lower-case extension without the dot, or `''`. */
 export function extensionOf(path: string): string {
   const name = path.slice(path.lastIndexOf('/') + 1)
@@ -70,9 +125,9 @@ export function extensionOf(path: string): string {
  * template's engine for one format.
  */
 export class EngineRegistry {
-  private readonly engines: EditorEngine[] = []
+  private readonly engines: RegisteredEngine[] = []
 
-  register(engine: EditorEngine): () => void {
+  register(engine: RegisteredEngine): () => void {
     if (this.engines.some(existing => existing.id === engine.id)) {
       throw new Error(`dsh-editor: engine "${engine.id}" is already registered`)
     }
@@ -84,7 +139,7 @@ export class EngineRegistry {
   }
 
   /** The engine for a path, or undefined when no engine claims its extension. */
-  resolve(path: string): EditorEngine | undefined {
+  resolve(path: string): RegisteredEngine | undefined {
     const extension = extensionOf(path)
     if (extension === '') return undefined
     for (let i = this.engines.length - 1; i >= 0; i--) {

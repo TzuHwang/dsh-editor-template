@@ -3,7 +3,15 @@
  * `editor` Cordis service; import from here with `import type`.
  */
 export type { EditorService, DocumentHandle } from './client/service.ts'
-export type { EditorEngine, EngineBinding, EngineInstance } from './engines.ts'
+export type {
+  EditorEngine,
+  EngineBinding,
+  EngineInstance,
+  RegisteredEngine,
+  SelfManagedBinding,
+  SelfManagedEngine,
+  SelfManagedInstance,
+} from './engines.ts'
 export type { EditorScopeStrategy, ScopeEnv } from './scopes.ts'
 export type { FileViewState } from './view-state.ts'
 export type { DocumentStatus } from './document.ts'
