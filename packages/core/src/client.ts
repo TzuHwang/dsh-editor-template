@@ -7,6 +7,7 @@ import type { CordisContext, WorkspaceFilesRemote } from './contract/dsh.ts'
 import { DEFAULT_SETTINGS, EditorService, type EditorSettings } from './client/service.ts'
 import { SettingsSection, type ConfigFormSnapshot } from './client/settings-section.tsx'
 import { en, zh } from './client/locales.ts'
+import { decorateSettingsNav } from './client/nav-icon.ts'
 
 export const name = 'dsh-editor-core'
 export const inject = ['remote', 'remote.workspaceFiles', 'locale', 'slots']
@@ -93,6 +94,7 @@ export function apply(ctx: CordisContext): void {
       },
       SettingsSection as (props: never) => unknown,
     ))), 'dsh-editor: settings page')
+    ctx.effect(() => decorateSettingsNav(document, () => t('settings.nav')), 'dsh-editor: settings nav icon')
   }
 
   ctx.effect(() => ctx.reflect.provide('editor', service), 'dsh-editor: editor service')

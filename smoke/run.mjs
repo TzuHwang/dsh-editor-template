@@ -160,6 +160,8 @@ try {
   await page.getByText(/^(编辑器模式|Editor mode)$/).first().click()
   const toggle = page.getByTestId('dsh-editor-settings-toggle')
   check('Settings has an Editor mode page', await eventually(async () => (await toggle.count()) > 0))
+  check('its nav entry shows the document icon', await eventually(async () =>
+    (await page.locator('[data-shortcut-modal="settings"] nav button').filter({ hasText: /^(编辑器模式|Editor mode)$/ }).locator('svg[data-dsh-editor-icon]').count()) > 0))
   check('sharing defaults to each session separately', await eventually(async () =>
     /^(每个会话各自独立|Each session separately)$/.test((await page.getByTestId('dsh-editor-settings-scope').innerText()).trim())))
   const reloaded = page.waitForEvent('load', { timeout: 15_000 }).then(() => true, () => false)
