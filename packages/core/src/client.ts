@@ -52,6 +52,7 @@ function readSettings(form: ConfigForm, service: EditorService): () => void {
     service.applySettings({
       enabled: value.enabled === true,
       scope: typeof value.scope === 'string' && value.scope !== '' ? value.scope : DEFAULT_SETTINGS.scope,
+      keepTabs: value.keepTabs === true,
     })
   }
   const unsubscribe = form.subscribe(sync)

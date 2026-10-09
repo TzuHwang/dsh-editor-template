@@ -28,6 +28,8 @@ export const zh = {
   'settings.scope.hint': '哪些会话共享已打开的文件和光标位置。',
   'settings.scope.session': '每个会话各自独立',
   'settings.scope.workspace': '同一工作区的所有会话',
+  'settings.keepTabs': '保留分页',
+  'settings.keepTabs.hint': '已打开的分页在后台保持运行：切换分页即时完成并保留撤销记录，但会占用更多内存。',
   'settings.reload': '刷新页面后生效。',
   'settings.reloadNow': '立即刷新',
 }
@@ -61,6 +63,8 @@ export const en: typeof zh = {
   'settings.scope.hint': 'Which sessions share open files and cursor positions.',
   'settings.scope.session': 'Each session separately',
   'settings.scope.workspace': 'All sessions in a workspace',
+  'settings.keepTabs': 'Keep tabs open',
+  'settings.keepTabs.hint': 'Open tabs keep running in the background: switching tabs is instant and keeps undo history, but uses more memory.',
   'settings.reload': 'Takes effect after the page reloads.',
   'settings.reloadNow': 'Reload now',
 }

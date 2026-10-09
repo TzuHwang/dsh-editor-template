@@ -14,8 +14,8 @@ export const name = 'dsh-editor-core'
 export const inject = ['webServer', 'connection', 'fs', 'sessions', 'sandboxPolicy']
 
 /**
- * Editor settings. Both are volatile, so rows on DSH's General settings page
- * edit them; the browser reads them through `configForms.get(<this entry's id>)`
+ * Editor settings. All are volatile, so the editor's settings page edits
+ * them; the browser reads them through `configForms.get(<this entry's id>)`
  * and applies them on the next page load. Until `enabled` is set, DSH looks and behaves
  * exactly as without the editor.
  */
@@ -24,6 +24,8 @@ export interface Config {
   enabled: boolean
   /** Scope strategy id for editor view state: `workspace`, `session`, or one a project registered. */
   scope: string
+  /** Keep every open tab's editor mounted (hidden when inactive) instead of only the active one. */
+  keepTabs: boolean
 }
 
 export const Config = z.object({
@@ -32,6 +34,9 @@ export const Config = z.object({
     .volatile(),
   scope: z.string().default('session')
     .description('Which sessions share open files and cursor positions: session (each separately) or workspace (all sessions in a workspace). Takes effect after a reload.')
+    .volatile(),
+  keepTabs: z.boolean().default(false)
+    .description('Keep open tabs\' editors running in the background: switching tabs is instant and keeps undo history, at the cost of memory. Takes effect after a reload.')
     .volatile(),
 })
 

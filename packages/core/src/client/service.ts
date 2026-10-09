@@ -38,9 +38,11 @@ export interface EditorSettings {
   /** Off by default: DSH is unchanged until the user turns the editor on. */
   readonly enabled: boolean
   readonly scope: string
+  /** Off by default: only the active tab's editor is mounted. */
+  readonly keepTabs: boolean
 }
 
-export const DEFAULT_SETTINGS: EditorSettings = { enabled: false, scope: sessionScope.id }
+export const DEFAULT_SETTINGS: EditorSettings = { enabled: false, scope: sessionScope.id, keepTabs: false }
 
 export class EditorService {
   readonly engines = new EngineRegistry()

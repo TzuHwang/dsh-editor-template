@@ -2,9 +2,9 @@
  * The editor's own page in DSH's settings (the `settings.section` slot), laid
  * out like DSH's pages. Values are the core entry's volatile config, written
  * through its config form, and apply on the next page load: turning editor
- * mode on or off saves and reloads at once; a changed scope offers a reload.
+ * mode on or off saves and reloads at once; other changes offer a reload.
  */
-import { IconChevronDownOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular, Menu, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Translate } from './frame.ts'
 import type { EditorSettings } from './service.ts'
@@ -98,19 +98,8 @@ function ScopeRow({ t, useForm, applied, scopes, set }: SettingsSectionProps) {
   const anchorRef = useRef<HTMLButtonElement>(null)
   const label = (id: string): string => id === 'workspace' || id === 'session' ? t(`settings.scope.${id}`) : id
   const ids = scopes.includes(scope) ? scopes : [...scopes, scope]
-  // One sentence per line: no joining space to get wrong between languages.
-  const hint = (
-    <>
-      <span style={{ display: 'block' }}>{t('settings.scope.hint')}</span>
-      <span style={{ display: 'block' }}>
-        {scope === applied.scope
-          ? t('settings.reload')
-          : <button type="button" style={link} onClick={() => location.reload()}>{t('settings.reloadNow')}</button>}
-      </span>
-    </>
-  )
   return (
-    <Row name={t('settings.scope')} description={hint}>
+    <Row name={t('settings.scope')} description={reloadNote(t, t('settings.scope.hint'), scope !== applied.scope)}>
       <Menu
         open={open}
         onClose={() => setOpen(false)}
@@ -144,6 +133,45 @@ function ScopeRow({ t, useForm, applied, scopes, set }: SettingsSectionProps) {
   )
 }
 
+/** A row's hint, then a line saying it applies after a reload, or a reload link once it changed. */
+function reloadNote(t: Translate, hint: string, changed: boolean): ReactNode {
+  // One sentence per line: no joining space to get wrong between languages.
+  return (
+    <>
+      <span style={{ display: 'block' }}>{hint}</span>
+      <span style={{ display: 'block' }}>
+        {changed
+          ? <button type="button" style={link} onClick={() => location.reload()}>{t('settings.reloadNow')}</button>
+          : t('settings.reload')}
+      </span>
+    </>
+  )
+}
+
+function KeepTabsRow({ t, useForm, applied, set }: SettingsSectionProps) {
+  const ready = useForm(snapshot => snapshot.status === 'ready')
+  const saved = useForm(snapshot => snapshot.value?.keepTabs ?? applied.keepTabs)
+  // The form answers after the write round-trips; show the choice at once.
+  const [pending, setPending] = useState<boolean | undefined>(undefined)
+  useEffect(() => { if (pending === saved) setPending(undefined) }, [pending, saved])
+  const keepTabs = pending ?? saved
+  return (
+    <Row name={t('settings.keepTabs')} description={reloadNote(t, t('settings.keepTabs.hint'), keepTabs !== applied.keepTabs)}>
+      <span data-testid="dsh-editor-settings-keep-tabs">
+        <Switch
+          checked={keepTabs}
+          label={t('settings.keepTabs')}
+          disabled={!ready}
+          onChange={(next) => {
+            setPending(next)
+            void set('keepTabs', next)
+          }}
+        />
+      </span>
+    </Row>
+  )
+}
+
 export function SettingsSection(props: SettingsSectionProps) {
   const { t } = props
   return (
@@ -152,6 +180,7 @@ export function SettingsSection(props: SettingsSectionProps) {
       <div style={intro}>{t('settings.description')}</div>
       <EnabledRow {...props} />
       <ScopeRow {...props} />
+      <KeepTabsRow {...props} />
     </div>
   )
 }

@@ -30,6 +30,10 @@ window.__ModuleLoader__.load({ id: 'dsh-editor-smoke-self-managed', factory: () 
       })
       view.append(shown, append)
       host.append(view)
+      // For the smoke test: how often views mount (kept tabs do not remount) ...
+      window.__smokeMounts = (window.__smokeMounts ?? 0) + 1
+      // ... and what the AI is told: this file, line 1.
+      binding.onSelection({ cursorLine: 1, fromLine: 1, toLine: 1, text: '' }, false)
 
       void files.readBytes(binding.sessionId, binding.path, {}).then(result => {
         if (!result.ok) throw new Error(result.error.code)
@@ -53,8 +57,12 @@ window.__ModuleLoader__.load({ id: 'dsh-editor-smoke-self-managed', factory: () 
       return {
         flush,
         focus() { append.focus() },
-        // Save before letting go: the core keeps the element until this settles.
-        destroy: () => flush().finally(() => view.remove()),
+        // Save before letting go: the core keeps the element in the page until this settles.
+        // The smoke test checks that promise: still in the page a moment later.
+        destroy: () => new Promise(resolve => setTimeout(resolve, 300))
+          .then(() => { window.__smokeKeptWhileClosing = view.isConnected })
+          .then(flush)
+          .finally(() => view.remove()),
       }
     },
   })

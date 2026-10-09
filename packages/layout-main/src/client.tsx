@@ -148,6 +148,8 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
         openFiles,
         openChat,
         showFull,
+        // Settings apply per page load.
+        keepTabs: editor.settings.getSnapshot()?.keepTabs === true,
         hooks: { tabs: { getSnapshot: editor.viewState.getTabsSnapshot, subscribe: editor.viewState.subscribe } },
       }),
     },

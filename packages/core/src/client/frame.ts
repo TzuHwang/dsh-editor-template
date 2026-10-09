@@ -8,7 +8,7 @@ import type { DocumentStatus } from '../document.ts'
 import { isSelfManaged, type EngineInstance, type SelfManagedEngine } from '../engines.ts'
 import type { SessionFileAddress } from '../contract/dsh.ts'
 import type { EditorService } from './service.ts'
-import { toEditorContext } from '../context.ts'
+import { toEditorContext, type EditorContext, type SelectionInfo } from '../context.ts'
 
 export type Translate = (key: string, params?: Record<string, string>) => string
 
@@ -65,8 +65,7 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
   let instance: EngineInstance | undefined
   let unsubscribe: (() => void) | undefined
   let detached = false
-  /** This view's identity in the per-session context store. */
-  const owner = {}
+  const context = contextReporter(editor, file, root)
 
   void handle.ready.then(() => {
     if (detached) return
@@ -80,11 +79,7 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
       onLocalChange: text => handle.doc.edit(text),
       onViewChange: view => { if (scopeKey !== null) editor.viewState.set(scopeKey, file.path, view) },
       save: () => { void handle.doc.flush() },
-      onSelection: (info, passive) => {
-        const context = toEditorContext(file.path, info)
-        if (passive) editor.context.update(file.sessionId, owner, context)
-        else editor.context.set(file.sessionId, owner, context)
-      },
+      onSelection: context.onSelection,
       // Leaving the editor (e.g. to message the AI) saves now, so the AI reads what the user sees.
       onBlur: () => { void handle.doc.flush() },
     })
@@ -125,7 +120,7 @@ export function attachFrame(editor: EditorService, host: HTMLElement, target: Fr
 
   return () => {
     detached = true
-    editor.context.release(file.sessionId, owner)
+    context.release()
     unsubscribe?.()
     instance?.destroy()
     handle.release()
@@ -148,8 +143,7 @@ function attachSelfManaged(
   const engineHost = el(root.ownerDocument, 'div', 'dsh-editor-frame__engine')
   root.append(engineHost)
   const scopeKey = editor.scopeKey(file.sessionId, workspaceRoot)
-  /** This view's identity in the per-session context store. */
-  const owner = {}
+  const context = contextReporter(editor, file, root)
   const instance = engine.mount(engineHost, {
     sessionId: file.sessionId,
     path: file.path,
@@ -157,17 +151,13 @@ function attachSelfManaged(
     workspaceRoot,
     initialView: scopeKey === null ? undefined : editor.viewState.get(scopeKey, file.path),
     onViewChange: view => { if (scopeKey !== null) editor.viewState.set(scopeKey, file.path, view) },
-    onSelection: (info, passive) => {
-      const context = toEditorContext(file.path, info)
-      if (passive) editor.context.update(file.sessionId, owner, context)
-      else editor.context.set(file.sessionId, owner, context)
-    },
+    onSelection: context.onSelection,
   })
   const removeFlusher = editor.addFlusher(() => instance.flush())
 
   return () => {
     removeFlusher()
-    editor.context.release(file.sessionId, owner)
+    context.release()
     const closing = instance.destroy()
     if (closing === undefined) {
       root.remove()
@@ -176,6 +166,40 @@ function attachSelfManaged(
     // The engine finishes something (e.g. a save) that needs it alive: keep it in the page, hidden.
     root.style.display = 'none'
     void closing.catch(() => undefined).finally(() => root.remove())
+  }
+}
+
+/**
+ * A view's cursor and selection, reported for the AI. A view can be hidden
+ * and shown again without remounting (kept tabs); when it shows, its last
+ * report speaks for the session again, so the AI sees the file on screen.
+ */
+function contextReporter(editor: EditorService, file: SessionFileAddress, root: HTMLElement): {
+  onSelection(info: SelectionInfo, passive: boolean): void
+  release(): void
+} {
+  /** This view's identity in the per-session context store. */
+  const owner = {}
+  let last: EditorContext | undefined
+  const visible = (): boolean => root.getClientRects().length > 0
+  let shown = visible()
+  // Hiding (display: none on an ancestor) and showing again both change the box.
+  const observer = new ResizeObserver(() => {
+    const now = visible()
+    if (now && !shown && last !== undefined) editor.context.set(file.sessionId, owner, last)
+    shown = now
+  })
+  observer.observe(root)
+  return {
+    onSelection(info, passive) {
+      last = toEditorContext(file.path, info)
+      if (passive) editor.context.update(file.sessionId, owner, last)
+      else editor.context.set(file.sessionId, owner, last)
+    },
+    release() {
+      observer.disconnect()
+      editor.context.release(file.sessionId, owner)
+    },
   }
 }
 

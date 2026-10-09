@@ -168,6 +168,8 @@ try {
     (await page.locator('[data-shortcut-modal="settings"] nav button').filter({ hasText: /^(编辑器模式|Editor mode)$/ }).locator('svg[data-dsh-editor-icon]').count()) > 0))
   check('sharing defaults to each session separately', await eventually(async () =>
     /^(每个会话各自独立|Each session separately)$/.test((await page.getByTestId('dsh-editor-settings-scope').innerText()).trim())))
+  const keepTabsSwitch = page.getByTestId('dsh-editor-settings-keep-tabs').getByRole('switch')
+  check('keeping tabs open defaults to off', await eventually(async () => (await keepTabsSwitch.getAttribute('aria-checked')) === 'false'))
   const reloaded = page.waitForEvent('load', { timeout: 15_000 }).then(() => true, () => false)
   await toggle.click()
   check('turning it on saves to the profile', await eventually(() => /enabled: true/.test(readFileSync(join(home, 'profiles', 'smoke', 'cordis.patch.yml'), 'utf8'))))
@@ -231,12 +233,26 @@ try {
   // Clicking the composer moves focus out of the engine, which saves on blur (as the text editor does).
   await sendFromChat('save the binary first')
   check('self-managed: messaging the AI saves it first (the engine saves on blur)', await eventually(() => diskBytes() === '00ff102a'), diskBytes())
+  /** What the fixture recorded while closing (undefined until its destroy got that far). */
+  const keptWhileClosing = async () => {
+    await eventually(async () => await page.evaluate(() => window.__smokeKeptWhileClosing) !== undefined)
+    return page.evaluate(() => window.__smokeKeptWhileClosing)
+  }
   await append()
   await notesTab()
-  check('self-managed: closing its view waits for its save', await eventually(() => diskBytes() === '00ff102a2a'), diskBytes())
+  check('self-managed: switching tabs waits for its save', await eventually(() => diskBytes() === '00ff102a2a'), diskBytes())
+  check('self-managed: its element stays in the page until then', await keptWhileClosing() === true)
   check('self-managed: and then removes it', await eventually(async () =>
     (await center.locator('.dsh-editor-frame').count()) === 1 && (await shownBytes.count()) === 0))
   check('back on the text file', await eventually(async () => (await lines.count()) > 2))
+  await openFromFiles('data.bin')
+  check('self-managed: it opens again', await eventually(async () => (await shownBytes.count()) > 0 && (await shownBytes.innerText()) === '00 ff 10 2a 2a'))
+  await page.evaluate(() => { window.__smokeKeptWhileClosing = undefined })
+  await append()
+  await center.locator('[role=tab]').filter({ hasText: 'data.bin' }).getByRole('button').click()
+  check('self-managed: closing its tab saves first', await eventually(() => diskBytes() === '00ff102a2a2a'), diskBytes())
+  check('self-managed: its element stays in the page meanwhile', await keptWhileClosing() === true)
+  check('back on the text file after closing', await eventually(async () => (await lines.count()) > 2))
 
   await page.getByTestId('dsh-editor-open-chat').click()
   check('the chat tab opens', await eventually(async () => (await chatInput.count()) === 1))
@@ -267,6 +283,27 @@ try {
   check('an AI edit reaches the center editor', await eventually(async () =>
     (await center.locator('.cm-line').allInnerTexts()).includes('written by the AI')), 15_000)
   check('the AI edit is on disk', disk('notes.md') === AI_EDIT_TEXT, disk('notes.md'))
+
+  // ---- keep tabs open: inactive tabs stay mounted, hidden ----
+  console.log('keep tabs')
+  await page.getByText(/^(设置|Settings)$/).last().click()
+  await page.getByText(/^(编辑器模式|Editor mode)$/).first().click()
+  await keepTabsSwitch.click()
+  check('keeping tabs open saves to the profile', await eventually(() => /keepTabs: true/.test(readFileSync(join(home, 'profiles', 'smoke', 'cordis.patch.yml'), 'utf8'))))
+  await openPage(server.url)
+  await page.getByText(/^(hello while off|ok)$/).first().click()
+  check('keep tabs: the center editor shows after the reload', await eventually(async () => (await center.count()) > 0))
+  await openFromFiles('data.bin')
+  check('keep tabs: the self-managed file opens', await eventually(async () => (await shownBytes.count()) > 0))
+  const mounts = await page.evaluate(() => window.__smokeMounts)
+  await notesTab()
+  const chip = page.getByTestId('dsh-editor-context-chip')
+  check('keep tabs: the text tab shows, and the AI context is its file', await eventually(async () =>
+    (await lines.count()) > 2 && (await shownBytes.isVisible()) === false && (await chip.innerText()).includes('notes.md')))
+  await center.locator('[role=tab]').filter({ hasText: 'data.bin' }).click()
+  check('keep tabs: switching back shows the same view, not a new one', await eventually(async () =>
+    await shownBytes.isVisible() && await page.evaluate(() => window.__smokeMounts) === mounts))
+  check('keep tabs: the AI context follows the shown tab', await eventually(async () => (await chip.innerText()).includes('data.bin')))
 
   check('no uncaught page errors', errors.length === 0, errors)
 } catch (error) {

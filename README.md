@@ -20,13 +20,17 @@ Built against `@deepseek-ai/dsh` **0.2.0-rc.2**. DSH APIs used are declared in
 
 Installed, the editor is **off** and DSH looks and works exactly as without it. Turn it on under
 **Settings → Editor mode** (the button saves and reloads the page), or in the profile patch. The
-same page sets which sessions share open files and cursor positions:
+same page sets which sessions share open files and cursor positions, and whether open tabs keep
+running in the background:
 
 ```yaml
 - id: dsh-editor-core
   config:
     enabled: true   # false (default): DSH unchanged
     scope: session  # session (default): each session separately; workspace: all sessions in a workspace
+    keepTabs: false # false (default): only the active tab's editor is mounted; true: every tab
+                    # activated since it opened stays mounted, hidden, so switching back is instant
+                    # and keeps undo history, at the cost of memory (heavy editors add up)
 ```
 
 On, the editor replaces DSH's `main.conversation` whenever a session is selected, a new one
