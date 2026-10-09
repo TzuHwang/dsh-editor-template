@@ -1,0 +1,12 @@
+# @dsh-editor/bundle: one host row per package. Each row is what makes DSH
+# discover that package's browser half (package.json#dsh.client); never add a
+# second row for a `/client` entry.
+- insert:
+    - id: dsh-editor-core
+      name: '@dsh-editor/core'
+    - id: dsh-editor-text
+      name: '@dsh-editor/text'
+    - id: dsh-editor-context
+      name: '@dsh-editor/context'
+    - id: dsh-editor-layout-main
+      name: '@dsh-editor/layout-main'

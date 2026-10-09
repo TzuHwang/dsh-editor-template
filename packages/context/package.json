@@ -1,0 +1,27 @@
+{
+  "name": "@dsh-editor/context",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/host.js",
+  "exports": {
+    ".": "./lib/host.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/"],
+  "scripts": { "build": "node ../../scripts/build-package.mjs" },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@dsh-editor/core",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "devDependencies": {
+    "@dsh-editor/core": "workspace:*"
+  }
+}

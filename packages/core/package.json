@@ -1,0 +1,45 @@
+{
+  "name": "@dsh-editor/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/host.js",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./lib/host.js"
+    },
+    "./client": {
+      "types": "./src/client.ts",
+      "default": "./lib/client.js"
+    },
+    "./diff": "./src/diff.ts",
+    "./context": "./src/context.ts",
+    "./kinds": "./src/kinds.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "src/"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-workspace-files",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "~3.18.4"
+  },
+  "devDependencies": {
+    "@deepseek-ai/schemastery": "~3.18.4"
+  }
+}
