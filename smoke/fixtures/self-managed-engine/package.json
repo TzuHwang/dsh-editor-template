@@ -2,7 +2,7 @@
   "name": "dsh-editor-smoke-self-managed",
   "version": "0.0.0",
   "private": true,
-  "description": "Smoke-test fixture: a self-managed engine for .bin files that reads and saves them itself.",
+  "description": "Smoke-test fixture: a self-managed engine for .bin files that reads and saves them itself, and a competing file tab type for them.",
   "type": "module",
   "main": "host.js",
   "exports": {
@@ -15,7 +15,7 @@
     "bundle": { "patch": "./cordis.patch.yml" },
     "client": {
       "platform": "web",
-      "inject": ["@dsh-editor/core", "@deepseek-ai/dsh-api-remotes", "@deepseek-ai/dsh-api-workspace-files"]
+      "inject": ["@dsh-editor/core", "@deepseek-ai/dsh-api-remotes", "@deepseek-ai/dsh-api-workspace-files", "@deepseek-ai/dsh-client-ui-sidebar-right"]
     }
   }
 }

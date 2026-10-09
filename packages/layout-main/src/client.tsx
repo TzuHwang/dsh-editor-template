@@ -10,7 +10,8 @@
  *   selected and while the user asked for the full conversation (which is also
  *   where DSH's start screen picks a new session's workspace).
  * - Files opened from the sidebar land in the center: a redirect tab type
- *   outranks DSH's viewers, hands the file to the center and closes itself.
+ *   outranks DSH's viewers and other plugins' file tabs, hands the file to the
+ *   center and closes itself.
  * - Chat: DSH's own conversation embedded in the right sidebar; see chat.tsx.
  */
 import type { CordisContext, EditorService, Translate } from '@dsh-editor/core'
@@ -219,7 +220,11 @@ function mount(ctx: CordisContext, editor: EditorService): () => void {
     id: REDIRECT_ID,
     kind: REDIRECT_KIND,
     multiple: true,
-    patterns: ['dsh-resource://file/**'],
+    // Session files only, which is all the editor opens. The longer pattern also outranks
+    // plugins that claim every file (`dsh-resource://file/**`, e.g. dsh-better-sidebar) in
+    // the same band: this type registers late, once settings are known, and would lose
+    // their tie on registration order.
+    patterns: ['dsh-resource://file/session/**'],
     priority: 'extension',
     canOpen: (address: string) => {
       const file = editor.parseAddress(address)

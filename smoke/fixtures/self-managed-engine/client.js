@@ -3,6 +3,10 @@
 // appends 0x2a on a button press, and saves when focus leaves it, when asked (`flush`)
 // or when its view closes (`destroy`). Written in the client bundle format DSH
 // loads (see scripts/build-package.mjs), so it needs no build.
+//
+// It also claims `.bin` files for a sidebar tab type of its own, the way other
+// plugins (e.g. dsh-better-sidebar) claim every file: same pattern, same band,
+// registered before the editor's. The editor must still get them.
 window.__ModuleLoader__.load({ id: 'dsh-editor-smoke-self-managed', factory: () => {
   const WRITE_ROUTE = '/dsh-editor-smoke/write'
   const hex = bytes => [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join(' ')
@@ -69,9 +73,18 @@ window.__ModuleLoader__.load({ id: 'dsh-editor-smoke-self-managed', factory: () 
 
   return {
     name: 'dsh-editor-smoke-self-managed',
-    inject: ['editor', 'remote', 'remote.workspaceFiles'],
+    inject: ['editor', 'remote', 'remote.workspaceFiles', 'sidebarRightTabs'],
     apply(ctx) {
       ctx.effect(() => ctx.editor.engines.register(engineFor(ctx.remote.workspaceFiles)), 'dsh-editor smoke: self-managed engine')
+      ctx.effect(() => ctx.sidebarRightTabs.register({
+        id: 'dsh-editor-smoke-file-claimer',
+        kind: 'dsh-editor-smoke-file-claimer',
+        multiple: true,
+        patterns: ['dsh-resource://file/**'],
+        priority: 'extension',
+        canOpen: address => address.endsWith('.bin'),
+        title: address => address.slice(address.lastIndexOf('/') + 1),
+      }), 'dsh-editor smoke: a competing file tab type')
     },
   }
 } })
